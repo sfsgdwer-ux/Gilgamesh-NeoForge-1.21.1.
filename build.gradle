@@ -6,6 +6,7 @@ version = project.mod_version
 group = project.mod_group_id
 base { archivesName = project.mod_id }
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
 neoForge {
     version = project.neo_version
     mods {
@@ -14,6 +15,18 @@ neoForge {
         }
     }
 }
+
+repositories {
+    // Compile against the same official release JARs the user runs.
+    // These are COMPILE-ONLY and are not packaged into this mod.
+    maven { url = 'https://cursemaven.com' }
+}
+
+dependencies {
+    compileOnly 'curse.maven:manascore-619025:8022425'
+    compileOnly 'curse.maven:tensura-reincarnated-643695:9289888'
+}
+
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }

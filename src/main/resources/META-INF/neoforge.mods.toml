@@ -3,11 +3,11 @@ loaderVersion="[4,)"
 license="All Rights Reserved"
 [[mods]]
 modId="gilgamesh_tensura"
-version="1.3.0"
-displayName="Gilgamesh - Golden Gates (Tensura Ultimate Skill Bridge)"
+version="1.4.0"
+displayName="Gilgamesh - Golden Gates (Native Ultimate Skill)"
 authors="Community recreation"
 description='''
-Golden Gates Ultimate Skill logic for Tensura + TensurJS. Install the bundled startup script.
+Native Tensura Ultimate Skill. No KubeJS or TensurJS dependency.
 '''
 [[dependencies.gilgamesh_tensura]]
 modId="neoforge"
@@ -22,22 +22,12 @@ versionRange="[1.21.1]"
 ordering="NONE"
 side="BOTH"
 [[dependencies.gilgamesh_tensura]]
-modId="tensura"
-type="required"
-ordering="AFTER"
-side="BOTH"
-[[dependencies.gilgamesh_tensura]]
 modId="manascore"
 type="required"
 ordering="AFTER"
 side="BOTH"
 [[dependencies.gilgamesh_tensura]]
-modId="kubejs"
-type="required"
-ordering="AFTER"
-side="BOTH"
-[[dependencies.gilgamesh_tensura]]
-modId="tensura_kubejs"
+modId="tensura"
 type="required"
 ordering="AFTER"
 side="BOTH"

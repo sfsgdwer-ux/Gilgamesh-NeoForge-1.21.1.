@@ -1,1 +1,8 @@
-{"key.gilgamesh_tensura.hold":"กดค้างเพื่อเปิดประตูทอง","key.categories.gilgamesh_tensura":"กิลกาเมช - ประตูทอง","item.gilgamesh_tensura.gate_frame":"กรอบประตูทอง","item.gilgamesh_tensura.gilgamesh_icon":"ไอคอนสกิลกิลกาเมช"}
+{
+  "key.gilgamesh_tensura.hold": "กดค้างเพื่อเปิดประตูทอง",
+  "key.categories.gilgamesh_tensura": "กิลกาเมช - ประตูทอง",
+  "item.gilgamesh_tensura.gate_frame": "กรอบประตูทอง",
+  "item.gilgamesh_tensura.gilgamesh_icon": "ไอคอนสกิลกิลกาเมช",
+  "gilgamesh_tensura.skill.gilgamesh": "กิลกาเมช ราชาแห่งคลังสมบัติ",
+  "gilgamesh_tensura.skill.gilgamesh.description": "อัลติเมตสกิล ประตูทอง เปิดประตู 5 วงและยิงอาวุธจำลองจากคลังเอนเดอร์เมื่อกดค้าง"
+}

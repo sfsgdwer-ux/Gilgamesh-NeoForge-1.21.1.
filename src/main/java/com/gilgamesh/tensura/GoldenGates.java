@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import net.minecraft.commands.Commands;
+import io.github.manasmods.manascore.skill.api.SkillAPI;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
@@ -75,10 +76,7 @@ public final class GoldenGates {
         }
     }
 
-    /**
-     * Called from the TensurJS onHeld/onPressed callbacks.
-     * No compile-time dependency on TensurJS or Tensura is required.
-     */
+    /** Called from the native ManasCore/Tensura GilgameshSkill callbacks. */
     public static boolean isSkillActive(LivingEntity entity) {
         if (!(entity instanceof ServerPlayer player)) return false;
         Active active = ACTIVE.get(player.getUUID());
@@ -271,6 +269,15 @@ public final class GoldenGates {
     @SubscribeEvent
     public static void commands(RegisterCommandsEvent event) {
         event.getDispatcher().register(Commands.literal("gilgamesh")
+            .then(Commands.literal("grant")
+                .requires(source -> source.hasPermission(2))
+                .executes(ctx -> {
+                    ServerPlayer player = ctx.getSource().getPlayerOrException();
+                    boolean learned = SkillAPI.getSkillsFrom(player).learnSkill(GilgameshMod.SKILL_ID);
+                    player.sendSystemMessage(Component.literal(
+                        learned ? "Gilgamesh Ultimate Skill learned" : "Unable to learn Gilgamesh skill"));
+                    return learned ? 1 : 0;
+                }))
             .then(Commands.literal("count").executes(ctx->{
                 ServerPlayer p=ctx.getSource().getPlayerOrException();
                 int count=0;

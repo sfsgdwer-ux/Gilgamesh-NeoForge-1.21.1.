@@ -1,1 +1,8 @@
-{"key.gilgamesh_tensura.hold":"Hold Golden Gates","key.categories.gilgamesh_tensura":"Gilgamesh - Golden Gates","item.gilgamesh_tensura.gate_frame":"Golden Gate Frame","item.gilgamesh_tensura.gilgamesh_icon":"Gilgamesh Skill Icon"}
+{
+  "key.gilgamesh_tensura.hold": "Hold Golden Gates",
+  "key.categories.gilgamesh_tensura": "Gilgamesh - Golden Gates",
+  "item.gilgamesh_tensura.gate_frame": "Golden Gate Frame",
+  "item.gilgamesh_tensura.gilgamesh_icon": "Gilgamesh Skill Icon",
+  "gilgamesh_tensura.skill.gilgamesh": "Gilgamesh, Lord of Treasures",
+  "gilgamesh_tensura.skill.gilgamesh.description": "Ultimate Skill: Golden Gates. Open five gates and launch weapons copied from the Ender Chest while held."
+}
