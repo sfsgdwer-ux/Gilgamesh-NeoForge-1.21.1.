@@ -1,4 +1,4 @@
-name: Build Gilgamesh NeoForge
+name: Build Gilgamesh NeoForge (Tensura Ultimate Skill)
 on:
   push:
     branches: [ main ]
@@ -10,7 +10,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Checkout repository
+      - name: Checkout source
         uses: actions/checkout@v4
       - name: Java 21
         uses: actions/setup-java@v4
@@ -21,12 +21,19 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.2.1'
-      - name: Build mod
-        run: gradle --no-daemon build --stacktrace
-      - name: Upload JAR
-        if: success()
+      - name: Validate KubeJS registration script
+        run: node --check integration/kubejs/startup_scripts/gilgamesh_tensura_skill.js
+      - name: Compile NeoForge mod
+        run: gradle --no-daemon clean build --stacktrace
+      - name: Assemble Minecraft installation tree
+        run: |
+          mkdir -p build/release/mods build/release/kubejs/startup_scripts
+          cp build/libs/*.jar build/release/mods/
+          cp integration/kubejs/startup_scripts/gilgamesh_tensura_skill.js build/release/kubejs/startup_scripts/
+          cp INSTALL_TH.md build/release/
+      - name: Upload installable bundle
         uses: actions/upload-artifact@v4
         with:
-          name: Gilgamesh-NeoForge-JAR
-          path: build/libs/*.jar
+          name: Gilgamesh-v1.3.0-Tensura-Ultimate-Skill
+          path: build/release/
           if-no-files-found: error

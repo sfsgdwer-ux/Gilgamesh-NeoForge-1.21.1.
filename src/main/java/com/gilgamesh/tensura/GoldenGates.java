@@ -1,13 +1,11 @@
 package com.gilgamesh.tensura;
 
-import com.mojang.brigadier.CommandDispatcher;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
@@ -21,7 +19,6 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.AxeItem;
-import net.minecraft.world.item.SwordItem;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -78,7 +75,26 @@ public final class GoldenGates {
         }
     }
 
-    public static void hold(ServerPlayer player, boolean pressed) {
+    /**
+     * Called from the TensurJS onHeld/onPressed callbacks.
+     * No compile-time dependency on TensurJS or Tensura is required.
+     */
+    public static boolean isSkillActive(LivingEntity entity) {
+        if (!(entity instanceof ServerPlayer player)) return false;
+        Active active = ACTIVE.get(player.getUUID());
+        return active != null && active.level == player.serverLevel()
+            && player.serverLevel().getGameTime() - active.heartbeat <= 9L;
+    }
+
+    public static void skillHeld(LivingEntity entity) {
+        if (entity instanceof ServerPlayer player) hold(player, true);
+    }
+
+    public static void skillReleased(LivingEntity entity) {
+        if (entity instanceof ServerPlayer player) hold(player, false);
+    }
+
+    private static void hold(ServerPlayer player, boolean pressed) {
         UUID id=player.getUUID();
         if (!pressed) {
             Active old=ACTIVE.remove(id);
@@ -255,14 +271,6 @@ public final class GoldenGates {
     @SubscribeEvent
     public static void commands(RegisterCommandsEvent event) {
         event.getDispatcher().register(Commands.literal("gilgamesh")
-            .then(Commands.literal("on").executes(ctx->{
-                ServerPlayer p=ctx.getSource().getPlayerOrException();
-                hold(p,true);return 1;
-            }))
-            .then(Commands.literal("off").executes(ctx->{
-                ServerPlayer p=ctx.getSource().getPlayerOrException();
-                hold(p,false);return 1;
-            }))
             .then(Commands.literal("count").executes(ctx->{
                 ServerPlayer p=ctx.getSource().getPlayerOrException();
                 int count=0;
