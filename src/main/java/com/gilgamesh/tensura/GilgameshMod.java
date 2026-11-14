@@ -13,6 +13,8 @@ public final class GilgameshMod {
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(MODID);
     public static final DeferredItem<Item> GATE_FRAME = ITEMS.registerSimpleItem("gate_frame", new Item.Properties());
 
+    public static final DeferredItem<Item> GILGAMESH_ICON = ITEMS.registerSimpleItem("gilgamesh_icon", new Item.Properties());
+
     public GilgameshMod(IEventBus bus) {
         ITEMS.register(bus);
     }

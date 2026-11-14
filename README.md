@@ -25,4 +25,4 @@ The code was written against 1.21.1 API and requires a successful GitHub Actions
 - Sword and axe ItemDisplay orientations use different local hilt-to-head diagonals instead of assuming vertical +Y. Third-party 3D item models may use different axes.
 - Swept projectile hitboxes stop the 2.7-block-per-tick displays from skipping entities between tick positions.
 - Small end-rod trails emphasize straight-line motion, and portal opening particles have a slightly longer reveal.
-- A simple skill-icon-like PNG resource has been bundled as a pixel-art approximation; the original uploaded icon is not yet embedded verbatim.
+- The bundled `gilgamesh_skill.png` is a newly created pixel-art approximation based on the uploaded visual reference, not a byte-for-byte copy. Try `/give @s gilgamesh_tensura:gilgamesh_icon` to inspect the texture; integration with the ManasCore skill selection UI is pending.
