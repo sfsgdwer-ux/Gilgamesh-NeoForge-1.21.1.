@@ -1,19 +1,22 @@
-# Gilgamesh Golden Gates (NeoForge 1.21.1)
+# Gilgamesh Golden Gates v1.2.0 for Minecraft 1.21.1 / NeoForge 21.1.265
 
-**Current status:** Build scaffolding only. The generated JAR does not yet implement the Golden Gates skill. Do **not** replace the existing v1.1.0 mod with it.
+**Experimental independent recreation**: this is NOT the TRMysticism Ultimate Skill class and does not yet register with the ManasCore skill selection UI.
 
-The project targets Java 21, Minecraft 1.21.1, NeoForge 21.1.265.
+### Gameplay
+- Insert one weapon into each **Ender Chest slot** (27 slots maximum).
+- Press and hold **J** (customizable in Options > Controls > Key Binds > Gilgamesh).
+- Five large oval gold gate item models appear **behind your character** and follow you.
+- A golden opening animation runs for 16 ticks before the first volley.
+- Fire up to **16 displayed weapons at once**. All items in that wave spawn on the same server tick.
+- With 27 filled slots, the sequence is **16 → 11 → 16 → ...**
+- Each visual weapon moves in a straight line, without gravity, at 2.7 blocks/tick; uses the snapshot of the look vector when spawned.
+- Releasing the key despawns the gates and active projectiles; if heartbeats are lost, the server cleans up automatically.
+- Your real Ender Chest items are never consumed.
+- Item models are aligned so +Y points along travel. Some custom mod items have nonstandard built-in model axes.
+- To troubleshoot, enter **/gilgamesh count**. Use /gilgamesh on/off for testing. For /gilgamesh on, sending /gilgamesh off turns it off, but keyboard packets also govern the hold state.
 
-## Planned v1.2.0
-- Five gold dimensional gates behind and following the player while the skill is held
-- Portals open before a batch launches
-- All 1–16 weapons in the current batch launch simultaneously, rotating through 16-slot batches
-- Each sword/axe travels in a straight line with its tip leading, not as a spinning thrown item
-- Skill icon based on the user-provided image
-- Inventory items remain untouched
+### Dependencies
+NeoForge 21.1.265 on Minecraft 1.21.1. Original Tensura/ManasCore may remain installed but **this is a standalone keybind implementation**; do not install the old experimental gilgamesh_tensura JAR alongside this one.
 
-## Build
-Go to Actions > Build Gilgamesh NeoForge > Run workflow; download the JAR artifact if the run succeeds.
-
-## Provenance
-The user-provided TRMysticism 1.1.0 binary is a reference, but legacy Forge/GeckoLib 3 classes cannot be loaded directly by NeoForge 1.21.1.
+### Status
+The code was written against 1.21.1 API and requires a successful GitHub Actions build and in-game test before treating it as a working release. Save a backup of your world.

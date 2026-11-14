@@ -3,11 +3,12 @@ loaderVersion="[4,)"
 license="All Rights Reserved"
 [[mods]]
 modId="gilgamesh_tensura"
-version="1.2.0-dev"
-displayName="Gilgamesh Golden Gates - Development"
-authors="Community port project"
+version="1.2.0"
+displayName="Gilgamesh - Golden Gates (NeoForge)"
+authors="Community recreation"
 description='''
-Development scaffold for Golden Gates. Not a finished skill mod.
+Five follower portals and simultaneous 16-weapon waves, powered by the Ender Chest.
+Independent NeoForge code; not copied legacy Forge classes.
 '''
 [[dependencies.gilgamesh_tensura]]
 modId="neoforge"
