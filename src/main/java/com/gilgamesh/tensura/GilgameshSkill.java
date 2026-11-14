@@ -60,9 +60,4 @@ public final class GilgameshSkill extends Skill {
         GoldenGates.skillReleased(entity);
     }
 
-    @Override
-    public void onHeldStop(ManasSkillInstance instance, LivingEntity entity,
-                           int heldTicks, int mode) {
-        GoldenGates.skillReleased(entity);
-    }
 }
