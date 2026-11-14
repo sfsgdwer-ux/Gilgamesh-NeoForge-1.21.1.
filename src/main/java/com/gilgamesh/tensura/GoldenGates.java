@@ -20,6 +20,8 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.AxeItem;
+import net.minecraft.world.item.SwordItem;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -39,8 +41,8 @@ import com.mojang.math.Transformation;
 public final class GoldenGates {
     private static final int GATES=5;
     private static final int WAVE=16;
-    private static final int OPEN_TICKS=16;
-    private static final int NEXT_WAVE_DELAY=24;
+    private static final int OPEN_TICKS=18;
+    private static final int NEXT_WAVE_DELAY=22;
     private static final int SHOT_LIFE=19;
     private static final double SHOT_SPEED=2.7;
     private static final double[] X={-2.7,-1.38,0,1.38,2.7};
@@ -130,10 +132,16 @@ public final class GoldenGates {
         gate.setTransformation(new Transformation(
             new Vector3f(),rot,new Vector3f(scale,scale,scale),new Quaternionf()));
     }
-    private static void poseShot(Display.ItemDisplay shot,Vec3 dir) {
-        // Item art normally points from hilt to tip along local +Y.
+    private static void poseShot(Display.ItemDisplay shot,Vec3 dir,ItemStack item) {
+        // Vanilla 2D tool art is drawn diagonally; +Y alone makes the sprite
+        // appear to fly sideways. Use the local hilt -> head diagonal.
+        String id=item.getDescriptionId().toLowerCase(java.util.Locale.ROOT);
+        boolean axe=item.getItem() instanceof AxeItem || id.contains("_axe");
+        Vector3f modelAxis = axe
+            ? new Vector3f(-1f,1f,0f).normalize()
+            : new Vector3f(1f,1f,0f).normalize();
         Quaternionf q=new Quaternionf().rotationTo(
-            new Vector3f(0,1,0),
+            modelAxis,
             new Vector3f((float)dir.x,(float)dir.y,(float)dir.z));
         shot.setTransformation(new Transformation(
             new Vector3f(),q,new Vector3f(1.25f,1.25f,1.25f),new Quaternionf()));
@@ -174,8 +182,15 @@ public final class GoldenGates {
             s.ticks++;
             Vec3 next=s.display.position().add(s.direction.scale(SHOT_SPEED));
             s.display.setPos(next.x,next.y,next.z);
+            if(s.ticks%2==0) {
+                Vec3 trail=next.subtract(s.direction.scale(0.6));
+                a.level.sendParticles(ParticleTypes.END_ROD,
+                    trail.x,trail.y,trail.z,1,0.03,0.03,0.03,0.003);
+            }
             boolean hit=false;
-            AABB area=new AABB(next,next).inflate(0.55);
+            // Sweep between positions: checking only 'next' skipped targets
+            // when projectiles moved more than one block in one tick.
+            AABB area=new AABB(s.display.position(),next).inflate(0.55);
             for(LivingEntity target:a.level.getEntitiesOfClass(LivingEntity.class,area)) {
                 if(target.getUUID().equals(s.owner) || !target.isAlive()) continue;
                 target.hurt(p.damageSources().playerAttack(p),7.0f);
@@ -228,7 +243,7 @@ public final class GoldenGates {
             d.setItemTransform(ItemDisplayContext.FIXED);
             d.setNoGravity(true);
             d.setPos(spawn.x,spawn.y,spawn.z);
-            poseShot(d,aim);
+            poseShot(d,aim,weapons.get(k));
             a.level.addFreshEntity(d);
             a.shots.add(new Shot(d,aim,p));
         }

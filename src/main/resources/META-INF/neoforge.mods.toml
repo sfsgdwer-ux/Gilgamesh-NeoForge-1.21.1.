@@ -3,7 +3,7 @@ loaderVersion="[4,)"
 license="All Rights Reserved"
 [[mods]]
 modId="gilgamesh_tensura"
-version="1.2.0"
+version="1.2.1"
 displayName="Gilgamesh - Golden Gates (NeoForge)"
 authors="Community recreation"
 description='''

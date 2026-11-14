@@ -20,3 +20,9 @@ NeoForge 21.1.265 on Minecraft 1.21.1. Original Tensura/ManasCore may remain ins
 
 ### Status
 The code was written against 1.21.1 API and requires a successful GitHub Actions build and in-game test before treating it as a working release. Save a backup of your world.
+
+## v1.2.1 improvements
+- Sword and axe ItemDisplay orientations use different local hilt-to-head diagonals instead of assuming vertical +Y. Third-party 3D item models may use different axes.
+- Swept projectile hitboxes stop the 2.7-block-per-tick displays from skipping entities between tick positions.
+- Small end-rod trails emphasize straight-line motion, and portal opening particles have a slightly longer reveal.
+- A simple skill-icon-like PNG resource has been bundled as a pixel-art approximation; the original uploaded icon is not yet embedded verbatim.
