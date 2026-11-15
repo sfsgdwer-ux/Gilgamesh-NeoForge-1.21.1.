@@ -1,4 +1,4 @@
-# Gilgamesh, Lord of Treasures — v1.7.1 Experimental
+# Gilgamesh, Lord of Treasures — v1.7.2 Experimental
 
 **Minecraft Java 1.21.1 · NeoForge 21.1.265 · Native Ultimate Skill**
 
@@ -18,6 +18,15 @@ The Gilgamesh skill is registered under `gilgamesh_tensura:gilgamesh` with **8 m
 | Ea: Sword of Rupture | Requires mastery 2,000; deducts 1,000,000 maximum AP; grants weapon |
 | Create Axe | Grants one indestructible axe at cost 1,000,000 MP |
 | Enuma Elish | Requires Ea held, costs 100,000 MP/s, raycast 2,000 Genesis damage and drains 0.05% of target's maximum MP per second |
+
+## Cinematic, camera-safe Enuma Elish visuals in v1.7.2
+- Replaces solid white/glowstone-style rectangular Enuma beam models with **translucent original crimson/amber 3D meshes** and four generated RGBA gradient textures.
+- The visible effect begins 4.35 blocks in front of the near-eye collision origin. It is intentionally slender (visual radius max 0.84) so it doesn't obscure the first-person or third-person view.
+- Three rings rotate at different speeds, one near the impact, and the red/amber aura breathes slightly.
+- Removes screen-filling white FLASH particles, halves ambient particle traffic, and gives the impact fine alternating crimson/gold spark arcs.
+- Keeps attack damage, block destruction, MP drain and hold/release behavior from 1.7.1. The visual diameter is smaller than the gameplay hit region.
+- Textures are created by a **Gradle task** with Java ImageIO; no Python, OptiFine, shaders, KubeJS or added runtime dependencies.
+- The look is a native translucent Minecraft effect, not a full AAA HDR bloom or post-processing shader. Test in-game, especially transparency sorting with other shader mods.
 
 ## Ea sword recall and re-summon in v1.7.1
 - The first unlock of the **Ea** skill at mastery 2000 charges 1,000,000 maximum AP exactly once. The sword's summon is thereafter a free toggle with the same skill button.
