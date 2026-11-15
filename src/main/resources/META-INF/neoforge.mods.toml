@@ -3,7 +3,7 @@ loaderVersion="[4,)"
 license="All Rights Reserved"
 [[mods]]
 modId="gilgamesh_tensura"
-version="1.7.6"
+version="1.7.9"
 displayName="Gilgamesh - Golden Gates (Native Ultimate Skill)"
 authors="Community recreation"
 description='''
@@ -29,5 +29,11 @@ side="BOTH"
 [[dependencies.gilgamesh_tensura]]
 modId="tensura"
 type="required"
+ordering="AFTER"
+side="BOTH"
+[[dependencies.gilgamesh_tensura]]
+modId="geckolib"
+type="required"
+versionRange="[4.9.3,)"
 ordering="AFTER"
 side="BOTH"
