@@ -22,6 +22,10 @@ import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.AxeItem;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.phys.AABB;
@@ -58,6 +62,16 @@ public final class GoldenGates {
     private static final int NEXT_WAVE_DELAY=22;
     private static final int SHOT_LIFE=19;
     private static final double SHOT_SPEED=2.7;
+    // Offsets are in blocks at the aim plane. First sword stays precisely
+    // on the crosshair; additional swords spread horizontally and vertically.
+    private static final double[][] FAN_OFFSETS={
+        {0,0}, {-1,0}, {1,0}, {0,1}, {0,-1},
+        {-1,1}, {1,1}, {-1,-1}, {1,-1},
+        {-2,0}, {2,0}, {0,2}, {0,-2},
+        {-2,1}, {2,1}, {-2,-1}
+    };
+    private static final double FAN_HORIZONTAL=1.2;
+    private static final double FAN_VERTICAL=0.9;
     // Portals are driven by the number of stored weapons, not mastery.
     private static final Map<UUID,Active> ACTIVE=new HashMap<>();
     private static final DustParticleOptions GOLD =
@@ -313,15 +327,34 @@ public final class GoldenGates {
         }
         level.sendParticles(ParticleTypes.END_ROD,center.x,center.y,center.z,1,0.12,0.24,0.12,0.01);
     }
-    private static float weaponDamage(ItemStack stack) {
-        double base=2;
+    /** Attack damage comes from THIS stored ItemStack's main-hand stats.
+     * Includes flat, base-multiplier and total-multiplier item attributes,
+     * plus the vanilla Sharpness bonus. Never uses a fixed sword damage cap.
+     */
+    private static float weaponDamage(ServerPlayer player,ItemStack stack) {
+        double flat=1.0; // The default vanilla player attack attribute.
+        double baseMultiplier=0.0;
+        double totalMultiplier=1.0;
         ItemAttributeModifiers mods=stack.getOrDefault(
             DataComponents.ATTRIBUTE_MODIFIERS,ItemAttributeModifiers.EMPTY);
-        for(ItemAttributeModifiers.Entry e:mods.modifiers()) {
-            if(e.attribute().equals(Attributes.ATTACK_DAMAGE))
-                base+=e.modifier().amount();
+        for(ItemAttributeModifiers.Entry entry:mods.modifiers()) {
+            if(!entry.attribute().equals(Attributes.ATTACK_DAMAGE)
+                || !entry.slot().test(EquipmentSlot.MAINHAND)) continue;
+            double amount=entry.modifier().amount();
+            switch(entry.modifier().operation()) {
+                case ADD_VALUE -> flat+=amount;
+                case ADD_MULTIPLIED_BASE -> baseMultiplier+=amount;
+                case ADD_MULTIPLIED_TOTAL -> totalMultiplier*=1.0+amount;
+            }
         }
-        return (float)Math.max(1,Math.min(250,base));
+        double damage=Math.max(0.0,flat*(1.0+baseMultiplier)*totalMultiplier);
+        // Sharpness is attached to the stored sword, not the caster's hand.
+        var sharpness=player.registryAccess().registryOrThrow(Registries.ENCHANTMENT)
+            .getHolderOrThrow(Enchantments.SHARPNESS);
+        int level=EnchantmentHelper.getItemEnchantmentLevel(sharpness,stack);
+        if(level>0) damage+=0.5*level+0.5;
+        if(!Double.isFinite(damage)) return 1.0f;
+        return (float)Math.max(1.0,Math.min(1_000_000.0,damage));
     }
 
     private static void fireWave(Active a,ServerPlayer p,Vec3 forward,Vec3 side) {
@@ -342,28 +375,43 @@ public final class GoldenGates {
         a.wave%=waves;
         int start=a.wave*WAVE;
         int limit=Math.min(start+WAVE,weapons.size());
-        // All rows converge on the player's crosshair target, including
-        // the high portals; firing along a parallel player-look vector would
-        // cause upper-row weapons to pass harmlessly above ground targets.
+        // Aim near the crosshair, not AT a single identical point. Each gate
+        // has its own lane and each subsequent shot fans out across the target
+        // plane. This creates visible spread while maintaining useful aiming.
         Vec3 aimPoint=a.surround?a.target:GilgameshAbilities.selectSurroundTarget(p);
         for(int k=start;k<limit;k++) {
             int index=k-start;
             int gate=readyGates.get(index%readyGates.size());
             Vec3 center=gatePos(a,p,gate,forward,side);
             int lane=index/readyGates.size();
-            // Keep multiple simultaneous swords inside their portal opening.
-            double xOffset=((lane%3)-1)*0.30;
-            double yOffset=(((lane/3)%3)-1)*0.22;
-            Vec3 spawn=center.add(side.scale(xOffset)).add(0,yOffset,0);
+            double[] fan=FAN_OFFSETS[lane%FAN_OFFSETS.length];
+            // Keep the launch inside the opening while fanning out in flight.
+            Vec3 spawn=center.add(side.scale(fan[0]*0.22))
+                .add(0,fan[1]*0.18,0);
             Display.ItemDisplay d=new Display.ItemDisplay(EntityType.ITEM_DISPLAY,a.level);
             d.setItemStack(weapons.get(k).copy());
             d.setItemTransform(ItemDisplayContext.FIXED);
             d.setNoGravity(true);
             d.setPos(spawn.x,spawn.y,spawn.z);
-            Vec3 shotAim=aimPoint.subtract(spawn).normalize();
+            Vec3 spreadTarget;
+            if(a.surround) {
+                // Surround gates continue inward, but strike different parts
+                // of the target area instead of collapsing onto a point.
+                Vec3 radial=center.subtract(a.target);
+                Vec3 flatRadial=new Vec3(radial.x,0,radial.z).normalize();
+                spreadTarget=a.target.add(flatRadial.scale(1.2))
+                    .add(side.scale(fan[0]*0.65))
+                    .add(0,fan[1]*0.50,0);
+            } else {
+                int[] cell=GRID_ORDER[gate];
+                spreadTarget=aimPoint.add(side.scale(
+                    cell[0]*1.65+fan[0]*FAN_HORIZONTAL))
+                    .add(0,cell[1]*1.20+fan[1]*FAN_VERTICAL,0);
+            }
+            Vec3 shotAim=spreadTarget.subtract(spawn).normalize();
             poseShot(d,shotAim,weapons.get(k));
             a.level.addFreshEntity(d);
-            a.shots.add(new Shot(d,shotAim,p,weaponDamage(weapons.get(k))));
+            a.shots.add(new Shot(d,shotAim,p,weaponDamage(p,weapons.get(k))));
         }
         // All the entities above are created in one server tick (no per-item delays).
         a.level.sendParticles(ParticleTypes.FLASH,p.getX(),p.getY()+2,p.getZ(),1,0,0,0,0);

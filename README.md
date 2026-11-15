@@ -1,4 +1,4 @@
-# Gilgamesh, Lord of Treasures — v1.6.2 Experimental
+# Gilgamesh, Lord of Treasures — v1.6.4 Experimental
 
 **Minecraft Java 1.21.1 · NeoForge 21.1.265 · Native Ultimate Skill**
 
@@ -13,12 +13,19 @@ The Gilgamesh skill is registered under `gilgamesh_tensura:gilgamesh` with **8 m
 | Territory Creation | Persistent 250×250 owner/team-player area, costs 1,000,000 maximum MP, replenishes current MP and health every 3 seconds |
 | Enkidu | Golden chain particle helixes, traps a line-of-sight target for 240 seconds (480 mastered), blocks ManasCore skill activation, costs 50,000 MP, 20-second cooldown |
 | King's Storehouse | True 5-column, 4-row (20 slot) custom GUI and player-persistent item storage; one weapon per slot |
-| Gate of Babylon — Direct Fire | 5–10 portals based on mastery, first cost 25,000 MP then 5,000 MP/s, 16 weapons launched per wave without consuming originals |
-| Gate of Babylon — Surround Attack | 7–12 portals in a ring centered on a ray-selected point or entity; fires inward |
+| Gate of Babylon — Direct Fire | 1–9 portals based on stored weapons, 25,000 MP activation then 5,000 MP/s; up to 16 shots per wave, with spread trajectory and damage from the particular stored item |
+| Gate of Babylon — Surround Attack | 1–9 portals in a ring around a ray-selected point or entity; fires inward with a small spread |
 | Ea: Sword of Rupture | Requires mastery 2,000; deducts 1,000,000 maximum AP; grants weapon |
 | Create Axe | Grants one indestructible axe at cost 1,000,000 MP |
 | Enuma Elish | Requires Ea held, costs 100,000 MP/s, raycast 2,000 Genesis damage and drains 0.05% of target's maximum MP per second |
 
+## Weapon-specific damage and spread volleys in v1.6.4
+- Each flying sword or other stored weapon copies its own main-hand attack-damage item modifiers (flat, multiplied base, multiplied total). Vanilla Sharpness level on that particular ItemStack contributes extra damage. No more fixed +2 damage or cap of 250; damages are bounded for numerical safety at 1,000,000.
+- Direct Fire targets an area rather than a single intersecting point. The first shot tracks the crosshair; other shots fan left/right and upward/downward. A portal's own 3×3 grid position also spreads its stream so multiple gates do not collapse into one spot.
+- Surround Attack distributes impacts around the selected target instead of converging to the exact same point.
+- Damage is snapshot per fired projectile and does **not** duplicate all mod-specific on-hit effects, special custom combat systems or conditional enchantment bonuses. Armor and normal game damage rules still affect final received damage.
+- Golden Portal 3D V2 was distributed as a separately repacked experimental 1.6.3 JAR, not yet checked into this GitHub source. Gameplay CI compiles the native classes; the separately packaged 3D JAR includes the original 1.6.3 OBJ and vortex assets.
+  
 ## Adaptive 3×3 Golden Gates in v1.6.2
 - **Direct Fire**: arrange up to nine portals behind the caster in a three-column, three-row grid with 3.65-block horizontal and 3.45-block vertical spacing to avoid overlap.
 - Gate deployment is **based on real weapons stored** in the 20-slot King's Storehouse, not player mastery: 1–3 weapons = 1 portal; 4–5 = 2; 6–7 = 3; then +1 for each two additional weapons (maximum 9 from 18 weapons).
