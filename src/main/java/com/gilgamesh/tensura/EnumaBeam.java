@@ -1,0 +1,241 @@
+package com.gilgamesh.tensura;
+
+import com.mojang.math.Transformation;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.DustParticleOptions;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Display;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
+
+/**
+ * Persistent 3D Enuma Elish visuals using built-in ItemDisplay entities.
+ * Two elongated 3D meshes and three animated rings are recycled while held,
+ * rather than respawning entities every frame. Original assets in this project;
+ * no GeckoLib, OptiFine, KubeJS or third-party renderer dependency.
+ */
+@EventBusSubscriber(modid=GilgameshMod.MODID)
+public final class EnumaBeam {
+    private static final double RANGE = 64.0;
+    private static final float DAMAGE_PER_PULSE = 320f;
+    private static final int MAX_BLOCKS_PER_SWEEP = 32;
+    private static final DustParticleOptions CRIMSON =
+        new DustParticleOptions(new Vector3f(1f,0.11f,0.16f),1.7f);
+    private static final DustParticleOptions GOLD =
+        new DustParticleOptions(new Vector3f(1f,0.78f,0.15f),1.15f);
+
+    private static final Map<UUID,Visuals> VISUALS = new HashMap<>();
+
+    private static final class Visuals {
+        final ServerLevel level;
+        final Display.ItemDisplay core;
+        final Display.ItemDisplay aura;
+        final Display.ItemDisplay[] rings = new Display.ItemDisplay[3];
+        long heartbeat;
+
+        Visuals(ServerPlayer player) {
+            level = player.serverLevel();
+            heartbeat = level.getGameTime();
+            core = spawn(level,player,new ItemStack(GilgameshMod.ENUMA_BEAM_CORE.get()));
+            aura = spawn(level,player,new ItemStack(GilgameshMod.ENUMA_BEAM_AURA.get()));
+            for(int i=0;i<3;i++)
+                rings[i] = spawn(level,player,new ItemStack(GilgameshMod.ENUMA_BEAM_RING.get()));
+        }
+    }
+
+    private EnumaBeam() {}
+
+    private static Display.ItemDisplay spawn(ServerLevel level,ServerPlayer player,ItemStack stack) {
+        Display.ItemDisplay display = new Display.ItemDisplay(EntityType.ITEM_DISPLAY,level);
+        display.setItemStack(stack);
+        display.setItemTransform(ItemDisplayContext.FIXED);
+        display.setNoGravity(true);
+        display.setPos(player.getX(),player.getY()+1.5,player.getZ());
+        level.addFreshEntity(display);
+        return display;
+    }
+
+    private static void clear(Visuals visuals) {
+        if(!visuals.core.isRemoved()) visuals.core.discard();
+        if(!visuals.aura.isRemoved()) visuals.aura.discard();
+        for(Display.ItemDisplay d : visuals.rings)
+            if(d!=null && !d.isRemoved()) d.discard();
+    }
+
+    public static void stop(ServerPlayer player) {
+        Visuals visuals = VISUALS.remove(player.getUUID());
+        if(visuals!=null) clear(visuals);
+    }
+
+    /** Called once per held tick by native ManasCore/Tensura Skill callbacks. */
+    public static void fire(ServerPlayer player,int heldTicks) {
+        ServerLevel level = player.serverLevel();
+        Visuals visuals=VISUALS.get(player.getUUID());
+        if(visuals!=null && visuals.level!=level) {
+            clear(visuals);
+            VISUALS.remove(player.getUUID());
+            visuals=null;
+        }
+        if(visuals==null) {
+            visuals=new Visuals(player);
+            VISUALS.put(player.getUUID(),visuals);
+        }
+        visuals.heartbeat=level.getGameTime();
+
+        Vec3 look=player.getLookAngle().normalize();
+        Vec3 rayOrigin=player.getEyePosition().add(look.scale(1.55));
+        Vec3 far=rayOrigin.add(look.scale(RANGE));
+        var hit=level.clip(new ClipContext(rayOrigin,far,
+            ClipContext.Block.COLLIDER,ClipContext.Fluid.NONE,player));
+        Vec3 end=hit.getType()==HitResult.Type.MISS?far:hit.getLocation();
+        double length=Math.max(0.5,rayOrigin.distanceTo(end));
+        Vec3 center=rayOrigin.add(look.scale(length*0.5));
+        double radius=1.25+Math.min(1.6,heldTicks*0.055);
+
+        // 1-block native model is elongated along its local +Z axis.
+        // Ring models spin in their local XY plane about that same axis.
+        Quaternionf facing=new Quaternionf().rotationTo(
+            new Vector3f(0,0,1),
+            new Vector3f((float)look.x,(float)look.y,(float)look.z).normalize());
+        pose(visuals.core,center,new Quaternionf(facing),
+            (float)(radius*5.0),(float)(radius*5.0),(float)length);
+        pose(visuals.aura,center,new Quaternionf(facing).rotateZ(heldTicks*0.075f),
+            (float)(radius*2.55),(float)(radius*2.55),(float)length);
+
+        for(int i=0;i<3;i++) {
+            double offset=Math.min(length*0.85,1.4+2.3*i);
+            Vec3 ringPos=rayOrigin.add(look.scale(offset));
+            float angle=(heldTicks*(i==1?-0.14f:0.13f))+(float)(i*Math.PI/3.0);
+            float size=(float)(radius*(3.9+0.25*i));
+            pose(visuals.rings[i],ringPos,new Quaternionf(facing).rotateZ(angle),
+                size,size,0.65f);
+        }
+
+        if(heldTicks%2==0) {
+            drawParticles(level,rayOrigin,look,length,radius,heldTicks);
+            damageEntities(level,player,rayOrigin,end,radius);
+        }
+        if(heldTicks%5==0) {
+            destroyAlongBeam(level,player,rayOrigin,end,radius*0.82);
+        }
+    }
+
+    private static void pose(Display.ItemDisplay display,Vec3 position,
+            Quaternionf rotation,float sx,float sy,float sz) {
+        display.setPos(position.x,position.y,position.z);
+        display.setTransformation(new Transformation(
+            new Vector3f(),rotation,new Vector3f(sx,sy,sz),new Quaternionf()));
+    }
+
+    private static void drawParticles(ServerLevel level,Vec3 start,Vec3 look,
+            double length,double radius,int ticks) {
+        Vec3 side=look.cross(new Vec3(0,1,0));
+        if(side.lengthSqr()<0.00001) side=new Vec3(1,0,0);
+        side=side.normalize();
+        Vec3 up=side.cross(look).normalize();
+        // Keep particle packets bounded; 3D model provides the solid beam.
+        int samples=Math.min(36,Math.max(8,(int)(length/2.2)));
+        for(int i=0;i<samples;i++) {
+            double dist=length*(i+0.5)/samples;
+            Vec3 at=start.add(look.scale(dist));
+            double a=ticks*0.42 + i*0.92;
+            double r=radius*(0.82+0.12*Math.sin(ticks*0.09+i));
+            Vec3 spark=at.add(side.scale(Math.cos(a)*r)).add(up.scale(Math.sin(a)*r));
+            level.sendParticles(i%3==0?GOLD:CRIMSON,spark.x,spark.y,spark.z,1,0,0,0,0);
+        }
+        Vec3 tip=start.add(look.scale(length));
+        level.sendParticles(ParticleTypes.END_ROD,tip.x,tip.y,tip.z,4,
+            radius*0.25,radius*0.25,radius*0.25,0.03);
+        if(ticks%6==0) level.sendParticles(ParticleTypes.FLASH,
+            tip.x,tip.y,tip.z,1,0,0,0,0);
+    }
+
+    private static void damageEntities(ServerLevel level,ServerPlayer caster,
+            Vec3 from,Vec3 to,double radius) {
+        AABB area=new AABB(from,to).inflate(radius+2.0);
+        for(LivingEntity target:level.getEntitiesOfClass(LivingEntity.class,area)) {
+            if(target==caster || !target.isAlive() || caster.isAlliedTo(target)) continue;
+            // Sphere-vs-segment is cheap and catches large entity hitboxes.
+            Vec3 center=target.getBoundingBox().getCenter();
+            double reach=radius + target.getBbWidth()*0.5;
+            if(distanceSqr(center,from,to) <= reach*reach)
+                target.hurt(level.damageSources().source(GilgameshMod.GENESIS_DAMAGE,caster),
+                    DAMAGE_PER_PULSE);
+        }
+    }
+
+    private static double distanceSqr(Vec3 point,Vec3 a,Vec3 b) {
+        Vec3 ab=b.subtract(a);
+        double length2=ab.lengthSqr();
+        if(length2<0.000001) return point.subtract(a).lengthSqr();
+        double projection=Math.max(0,Math.min(1,point.subtract(a).dot(ab)/length2));
+        return point.subtract(a.add(ab.scale(projection))).lengthSqr();
+    }
+
+    /**
+     * Expands through space only after the previous blocks are removed by
+     * successive pulses. Caps work and respects unbreakables/block entities.
+     */
+    private static void destroyAlongBeam(ServerLevel level,ServerPlayer caster,
+            Vec3 from,Vec3 to,double radius) {
+        if(from.distanceToSqr(to)<0.2) return;
+        Vec3 delta=to.subtract(from);
+        Vec3 dir=delta.normalize();
+        double length=from.distanceTo(to);
+        Set<BlockPos> visited=new HashSet<>();
+        int destroyed=0;
+        for(double d=1.0;d<length && destroyed<MAX_BLOCKS_PER_SWEEP;d+=1.1) {
+            Vec3 center=from.add(dir.scale(d));
+            int minX=(int)Math.floor(center.x-radius), maxX=(int)Math.ceil(center.x+radius);
+            int minY=(int)Math.floor(center.y-radius), maxY=(int)Math.ceil(center.y+radius);
+            int minZ=(int)Math.floor(center.z-radius), maxZ=(int)Math.ceil(center.z+radius);
+            for(int x=minX;x<=maxX && destroyed<MAX_BLOCKS_PER_SWEEP;x++)
+                for(int y=minY;y<=maxY && destroyed<MAX_BLOCKS_PER_SWEEP;y++)
+                    for(int z=minZ;z<=maxZ && destroyed<MAX_BLOCKS_PER_SWEEP;z++) {
+                        double dx=x+0.5-center.x,dy=y+0.5-center.y,dz=z+0.5-center.z;
+                        if(dx*dx+dy*dy+dz*dz>radius*radius) continue;
+                        BlockPos pos=new BlockPos(x,y,z);
+                        if(!visited.add(pos) || !level.hasChunkAt(pos)) continue;
+                        BlockState state=level.getBlockState(pos);
+                        if(state.isAir() || state.getDestroySpeed(level,pos)<0 ||
+                            level.getBlockEntity(pos)!=null) continue;
+                        if(level.destroyBlock(pos,false,caster)) destroyed++;
+                    }
+        }
+    }
+
+    @SubscribeEvent
+    public static void tick(ServerTickEvent.Post event) {
+        Iterator<Map.Entry<UUID,Visuals>> it=VISUALS.entrySet().iterator();
+        while(it.hasNext()) {
+            var entry=it.next();
+            Visuals visuals=entry.getValue();
+            ServerPlayer player=event.getServer().getPlayerList().getPlayer(entry.getKey());
+            if(player==null || player.isRemoved() || player.serverLevel()!=visuals.level ||
+               visuals.level.getGameTime()-visuals.heartbeat>8) {
+                clear(visuals);
+                it.remove();
+            }
+        }
+    }
+}

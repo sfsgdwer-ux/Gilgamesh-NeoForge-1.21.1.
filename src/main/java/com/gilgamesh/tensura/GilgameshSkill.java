@@ -8,10 +8,10 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 
-/** Native Ultimate Skill with 8 configurable modes. No scripting addons. */
+/** Native Ultimate Skill with 7 configurable modes. No scripting addons. */
 public final class GilgameshSkill extends Skill {
     public static final int TERRITORY = 0, ENKIDU = 1, STOREHOUSE = 2,
-        DIRECT = 3, SURROUND = 4, EA = 5, AXE = 6, ENUMA = 7;
+        DIRECT = 3, SURROUND = 4, EA = 5, ENUMA = 6;
 
     public GilgameshSkill() { super(SkillType.ULTIMATE); }
 
@@ -25,7 +25,7 @@ public final class GilgameshSkill extends Skill {
     public int getMaxMastery() { return 2000; }
 
     @Override
-    public int getModes(ManasSkillInstance instance) { return 8; }
+    public int getModes(ManasSkillInstance instance) { return 7; }
 
     @Override
     public String getModeId(ManasSkillInstance instance, int mode) {
@@ -36,7 +36,6 @@ public final class GilgameshSkill extends Skill {
             case DIRECT -> "direct";
             case SURROUND -> "surround";
             case EA -> "ea";
-            case AXE -> "axe";
             case ENUMA -> "enuma";
             default -> "direct";
         };
@@ -49,7 +48,7 @@ public final class GilgameshSkill extends Skill {
 
     @Override
     public int nextMode(LivingEntity entity, ManasSkillInstance instance, int mode, boolean reverse) {
-        return Math.floorMod(mode + (reverse ? -1 : 1), 8);
+        return Math.floorMod(mode + (reverse ? -1 : 1), 7);
     }
 
     @Override
@@ -135,12 +134,6 @@ public final class GilgameshSkill extends Skill {
                 if(!spendPermanentAura(player,1_000_000)) return;
                 GilgameshAbilities.giveEa(player);
             }
-            case AXE -> {
-                if(GilgameshAbilities.hasCreatedAxe(player)) return;
-                if(!spend(player,1_000_000)) return;
-                GilgameshAbilities.giveAxe(player);
-                addMasteryPoint(instance,player,5);
-            }
             case ENUMA -> {
                 if(!GilgameshAbilities.holdsEa(player))
                     player.displayClientMessage(Component.literal("Hold Ea to use Enuma Elish"),true);
@@ -177,15 +170,20 @@ public final class GilgameshSkill extends Skill {
                 return true;
             }
             case ENUMA -> {
-                if(!GilgameshAbilities.holdsEa(player)) return false;
-                if(heldTicks%20==0) {
-                    if(!spend(player,100_000)) return false;
-                    GilgameshAbilities.enumaElish(player);
+                if(!GilgameshAbilities.holdsEa(player)) {
+                    EnumaBeam.stop(player);
+                    return false;
+                }
+                // Preserve 100,000 MP/s sustained consumption.
+                if(heldTicks>0 && heldTicks%20==0) {
+                    if(!spend(player,100_000)) {
+                        EnumaBeam.stop(player);
+                        return false;
+                    }
                     addMasteryPoint(instance,player,2);
                 }
-                // Small, synchronized red-gold rotating effects during
-                // casting. The native item model remains a static mesh.
                 GilgameshAbilities.animateEaCharge(player,heldTicks);
+                EnumaBeam.fire(player,heldTicks);
                 return true;
             }
             default -> { return false; }
@@ -196,5 +194,6 @@ public final class GilgameshSkill extends Skill {
     public void onRelease(ManasSkillInstance instance, LivingEntity entity,
                           int heldTicks, int keyNumber, int mode) {
         GoldenGates.skillReleased(entity);
+        if(entity instanceof ServerPlayer player) EnumaBeam.stop(player);
     }
 }
