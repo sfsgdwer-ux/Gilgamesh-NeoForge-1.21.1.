@@ -43,6 +43,9 @@ public final class GilgameshMod {
         ITEMS.registerSimpleItem("enuma_impact", new Item.Properties());
 
     public static final DeferredItem<Item> GILGAMESH_ICON = ITEMS.registerSimpleItem("gilgamesh_icon", new Item.Properties());
+    // Model-only ItemDisplay link for Enkidu chains around a bound target.
+    public static final DeferredItem<Item> ENKIDU_CHAIN_LINK =
+        ITEMS.registerSimpleItem("enkidu_chain_link", new Item.Properties());
 
     public static final DeferredRegister<MenuType<?>> MENUS = DeferredRegister.create(Registries.MENU, MODID);
     public static final DeferredHolder<MenuType<?>,MenuType<WeaponVaultMenu>> VAULT_MENU =

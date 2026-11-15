@@ -96,6 +96,7 @@ public final class GilgameshAbilities {
         if(victim==null)return false;
         long until=p.serverLevel().getGameTime()+(mastered?480:240)*20L;
         BINDS.put(victim.getUUID(),new Binding(p.serverLevel(),victim.getUUID(),victim.position(),until));
+        EnkiduChains.summon(p, victim, until);
         victim.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN,200,255,false,true,true));
         p.displayClientMessage(Component.literal("Enkidu: holy chains bound target"),true);
         return true;

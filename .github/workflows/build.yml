@@ -41,6 +41,6 @@ jobs:
           cp INSTALL_TH.md build/release/
       - uses: actions/upload-artifact@v4
         with:
-          name: Gilgamesh-v1.7.9-Ea-GeckoLib-Private-Port-Experimental
+          name: Gilgamesh-v1.8.0-Animated-Ea-Enkidu-Chains-Experimental
           path: build/release/
           if-no-files-found: error
