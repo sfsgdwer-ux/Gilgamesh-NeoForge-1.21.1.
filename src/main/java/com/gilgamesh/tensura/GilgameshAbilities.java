@@ -20,6 +20,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import io.github.manasmods.manascore.skill.api.SkillAPI;
+import io.github.manasmods.tensura.util.EnergyHelper;
 
 /** Server-authoritative original gameplay approximations of the legacy modes. */
 @EventBusSubscriber(modid=GilgameshMod.MODID)
@@ -87,6 +88,8 @@ public final class GilgameshAbilities {
         if(hasCreatedAxe(p))return;
         p.getPersistentData().putBoolean(AXE_KEY,true);
         ItemStack stack=new ItemStack(GilgameshMod.GENESIS_AXE.get());
+        stack.set(net.minecraft.core.component.DataComponents.UNBREAKABLE,
+                  new net.minecraft.world.item.component.Unbreakable(true));
         p.getInventory().placeItemBackInInventory(stack);
     }
     public static void giveEa(ServerPlayer p) {
@@ -110,8 +113,10 @@ public final class GilgameshAbilities {
         }
         LivingEntity target=aimedTarget(p,57);
         if(target!=null) {
-            // TODO: true Genesis damage type and percentage-based magicule drain.
             target.hurt(p.damageSources().magic(),2000f);
+            // The wiki specifies 0.05% of target's maximum Magicules per second.
+            double drain=Math.max(0,EnergyHelper.getMaxMagicule(target)*0.0005);
+            EnergyHelper.isOutOfMagiculeConsuming(target,drain,0.0D);
         }
     }
 
@@ -140,7 +145,9 @@ public final class GilgameshAbilities {
                 if(ally.serverLevel()!=owner.serverLevel())continue;
                 if(ally!=owner && !owner.isAlliedTo(ally)) continue;
                 if(Math.abs(ally.getX()-cx)>125 || Math.abs(ally.getZ()-cz)>125)continue;
-                ally.heal(ally.getMaxHealth()*0.05f);
+                ally.heal(ally.getMaxHealth());
+                EnergyHelper.gainMagicule(ally, EnergyHelper.getMaxMagicule(ally),
+                    EnergyHelper.GainType.NORMAL);
                 ally.addEffect(new MobEffectInstance(MobEffects.REGENERATION,90,2,true,false));
             }
         }

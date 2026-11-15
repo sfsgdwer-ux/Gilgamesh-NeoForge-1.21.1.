@@ -78,6 +78,26 @@ public final class GilgameshSkill extends Skill {
         return success;
     }
 
+    private static boolean spendPermanentMagicule(ServerPlayer player, double amount) {
+        double maximum=EnergyHelper.getBaseMaxMagicule(player);
+        if(maximum<amount) {
+            player.displayClientMessage(Component.literal("Requires "+(long)amount+" Max MP"),true);
+            return false;
+        }
+        EnergyHelper.setMaxMagicule(player,maximum-amount);
+        return true;
+    }
+
+    private static boolean spendPermanentAura(ServerPlayer player, double amount) {
+        double maximum=EnergyHelper.getBaseMaxAura(player);
+        if(maximum<amount) {
+            player.displayClientMessage(Component.literal("Requires "+(long)amount+" Max AP"),true);
+            return false;
+        }
+        EnergyHelper.setMaxAura(player,maximum-amount);
+        return true;
+    }
+
     @Override
     public void onPressed(ManasSkillInstance instance, LivingEntity entity, int keyNumber, int mode) {
         if (!(entity instanceof ServerPlayer player)) return;
@@ -108,9 +128,7 @@ public final class GilgameshSkill extends Skill {
                     player.displayClientMessage(Component.literal("Ea requires 2000 Mastery"),true);
                     return;
                 }
-                // Max AP is not yet available through the confirmed interface;
-                // this development build temporarily charges Magicules instead.
-                if(!spend(player,1_000_000)) return;
+                if(!spendPermanentAura(player,1_000_000)) return;
                 GilgameshAbilities.giveEa(player);
             }
             case AXE -> {
@@ -133,7 +151,7 @@ public final class GilgameshSkill extends Skill {
         switch(mode) {
             case TERRITORY -> {
                 if(heldTicks>=18 && !GilgameshAbilities.hasTerritory(player)) {
-                    if(!spend(player,1_000_000)) return false;
+                    if(!spendPermanentMagicule(player,1_000_000)) return false;
                     GilgameshAbilities.establishTerritory(player);
                     addMasteryPoint(instance,player,10);
                 }
