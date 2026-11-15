@@ -37,6 +37,9 @@ import org.joml.Vector3f;
 @EventBusSubscriber(modid=GilgameshMod.MODID)
 public final class EnumaBeam {
     private static final double RANGE = 64.0;
+    private static final int CHARGE_TICKS = 12;
+    private static final double OVERDRIVE_RIBBON_WIDTH = 1.76;
+    private static final double OVERDRIVE_IMPACT_WIDTH = 2.3;
     // Keep the visible beam outside the first-person camera and in front of
     // the player's third-person silhouette. Hit detection still starts near the eye.
     private static final double VFX_FORWARD_OFFSET = 4.35;
@@ -56,6 +59,8 @@ public final class EnumaBeam {
         final Display.ItemDisplay core;
         final Display.ItemDisplay aura;
         final Display.ItemDisplay[] rings = new Display.ItemDisplay[3];
+        final Display.ItemDisplay[] spirals = new Display.ItemDisplay[2];
+        final Display.ItemDisplay[] shocks = new Display.ItemDisplay[2];
         long heartbeat;
 
         Visuals(ServerPlayer player) {
@@ -65,6 +70,10 @@ public final class EnumaBeam {
             aura = spawn(level,player,new ItemStack(GilgameshMod.ENUMA_BEAM_AURA.get()));
             for(int i=0;i<3;i++)
                 rings[i] = spawn(level,player,new ItemStack(GilgameshMod.ENUMA_BEAM_RING.get()));
+            for(int i=0;i<2;i++) {
+                spirals[i] = spawn(level,player,new ItemStack(GilgameshMod.ENUMA_SPIRAL.get()));
+                shocks[i] = spawn(level,player,new ItemStack(GilgameshMod.ENUMA_IMPACT.get()));
+            }
         }
     }
 
@@ -75,6 +84,7 @@ public final class EnumaBeam {
         display.setItemStack(stack);
         display.setItemTransform(ItemDisplayContext.FIXED);
         display.setNoGravity(true);
+        display.setBillboardConstraints(Display.BillboardConstraints.FIXED);
         display.setPos(player.getX(),player.getY()+1.5,player.getZ());
         level.addFreshEntity(display);
         return display;
@@ -84,6 +94,10 @@ public final class EnumaBeam {
         if(!visuals.core.isRemoved()) visuals.core.discard();
         if(!visuals.aura.isRemoved()) visuals.aura.discard();
         for(Display.ItemDisplay d : visuals.rings)
+            if(d!=null && !d.isRemoved()) d.discard();
+        for(Display.ItemDisplay d : visuals.spirals)
+            if(d!=null && !d.isRemoved()) d.discard();
+        for(Display.ItemDisplay d : visuals.shocks)
             if(d!=null && !d.isRemoved()) d.discard();
     }
 
@@ -126,42 +140,95 @@ public final class EnumaBeam {
         Quaternionf facing=new Quaternionf().rotationTo(
             new Vector3f(0,0,1),
             new Vector3f((float)look.x,(float)look.y,(float)look.z).normalize());
-        if(length<0.25) {
-            // Wall or entity right in front of the player's face. Hide large
-            // displays instead of placing a giant glowing plane on the camera.
-            pose(visuals.core,visualStart,new Quaternionf(facing),0.001f,0.001f,0.001f);
-            pose(visuals.aura,visualStart,new Quaternionf(facing),0.001f,0.001f,0.001f);
-            for(Display.ItemDisplay ring:visuals.rings)
-                pose(ring,visualStart,new Quaternionf(facing),0.001f,0.001f,0.001f);
-        } else {
-            // Models are translucent original sprites rather than opaque
-            // glowstone cubes. Each display is reused for the held cast.
-            float breathing=(float)(1.0+0.045*Math.sin(heldTicks*0.18));
-            pose(visuals.core,center,new Quaternionf(facing),
-                (float)(visibleRadius*1.45),(float)(visibleRadius*1.45),(float)length);
-            pose(visuals.aura,center,new Quaternionf(facing).rotateZ(heldTicks*0.095f),
-                (float)(visibleRadius*1.35*breathing),
-                (float)(visibleRadius*1.35*breathing),(float)length);
-
-            for(int i=0;i<3;i++) {
-                double offset=i==2?Math.max(0.5,length-1.1):
-                    Math.min(length*0.8,1.5+i*3.2);
-                Vec3 ringPos=visualStart.add(look.scale(offset));
-                float angle=heldTicks*(i==1?-0.09f:0.105f)+(float)(i*Math.PI/3.0);
-                float size=(float)(visibleRadius*(1.45+0.24*i));
-                pose(visuals.rings[i],ringPos,
-                    new Quaternionf(facing).rotateZ(angle),
-                    size,size,0.24f);
+        boolean firing=heldTicks>=CHARGE_TICKS && length>=0.25;
+        if(!firing) {
+            // Charge phase: keep the entire beam hidden until the sword is
+            // ready. Show multiple tight rotating rings ahead of the camera.
+            hide(visuals.core,visualStart,facing);
+            hide(visuals.aura,visualStart,facing);
+            for(Display.ItemDisplay strand:visuals.spirals)
+                hide(strand,visualStart,facing);
+            for(Display.ItemDisplay impact:visuals.shocks)
+                hide(impact,visualStart,facing);
+            double progress=Math.min(1,Math.max(0,heldTicks/(double)CHARGE_TICKS));
+            double chargeScale=Math.max(0.05,progress*progress);
+            for(int i=0;i<visuals.rings.length;i++) {
+                Vec3 at=visualStart.add(look.scale(0.4+i*0.48));
+                float pulse=(float)((0.44+0.10*i+chargeScale*0.5)*visibleRadius);
+                pose(visuals.rings[i],at,
+                    new Quaternionf(facing).rotateZ(heldTicks*(i==1?-0.16f:0.13f)),
+                    pulse,pulse,0.14f);
             }
+            if(heldTicks%2==0 && length>0.25)
+                drawChargeParticles(level,visualStart,look,heldTicks,visibleRadius);
+            return;
+        }
+
+        // Two solid-looking but translucent layers, decorated with two
+        // independently rotating helices and crimson-black fractures.
+        float breathing=(float)(1.0+0.045*Math.sin(heldTicks*0.18));
+        pose(visuals.core,center,new Quaternionf(facing),
+            (float)(visibleRadius*1.45),(float)(visibleRadius*1.45),(float)length);
+        pose(visuals.aura,center,new Quaternionf(facing).rotateZ(heldTicks*0.095f),
+            (float)(visibleRadius*1.35*breathing),
+            (float)(visibleRadius*1.35*breathing),(float)length);
+        for(int i=0;i<2;i++) {
+            float roll=heldTicks*(i==0?0.165f:-0.13f)+(float)(i*Math.PI);
+            float r=(float)(visibleRadius*OVERDRIVE_RIBBON_WIDTH*(i==0?1.0:0.92));
+            pose(visuals.spirals[i],center,new Quaternionf(facing).rotateZ(roll),
+                r,r,(float)length);
+        }
+
+        // Source/middle/impact runes rotate at independent speeds. Unlike the
+        // old giant discs, all stay within a narrow band around the attack.
+        for(int i=0;i<3;i++) {
+            double offset=i==2?Math.max(0.5,length-1.2):
+                Math.min(length*0.72,0.8+i*4.1);
+            Vec3 ringPos=visualStart.add(look.scale(offset));
+            float angle=heldTicks*(i==1?-0.12f:0.11f)+(float)(i*Math.PI/3.0);
+            float size=(float)(visibleRadius*(1.35+0.18*i));
+            pose(visuals.rings[i],ringPos,new Quaternionf(facing).rotateZ(angle),
+                size,size,0.20f);
+        }
+
+        // Cinematic impact ripples, synchronized with the attack but never
+        // enormous white flashes. The wave alternates with a gold outline.
+        for(int i=0;i<visuals.shocks.length;i++) {
+            float wave=((heldTicks-CHARGE_TICKS+i*6)%12)/12f;
+            float scale=(float)(visibleRadius*OVERDRIVE_IMPACT_WIDTH*
+                (0.48+wave*1.35));
+            pose(visuals.shocks[i],end.subtract(look.scale(0.28)),
+                new Quaternionf(facing).rotateZ(
+                    heldTicks*(i==0?0.055f:-0.08f)+i*0.8f),
+                scale,scale,0.24f);
         }
 
         if(heldTicks%2==0) {
-            if(length>0.25)
-                drawParticles(level,visualStart,look,length,visibleRadius,heldTicks);
+            drawParticles(level,visualStart,look,length,visibleRadius,heldTicks);
             damageEntities(level,player,collisionStart,end,damageRadius);
         }
         if(heldTicks%5==0) {
             destroyAlongBeam(level,player,collisionStart,end,damageRadius*0.82);
+        }
+    }
+
+    private static void hide(Display.ItemDisplay d,Vec3 at,Quaternionf facing) {
+        pose(d,at,new Quaternionf(facing),0.001f,0.001f,0.001f);
+    }
+
+    private static void drawChargeParticles(ServerLevel level,Vec3 origin,Vec3 look,
+            int ticks,double radius) {
+        Vec3 side=look.cross(new Vec3(0,1,0));
+        if(side.lengthSqr()<0.00001) side=new Vec3(1,0,0);
+        side=side.normalize();
+        Vec3 up=side.cross(look).normalize();
+        for(int i=0;i<8;i++) {
+            double a=(i*2*Math.PI/8)+ticks*0.22;
+            double r=radius*(1.8-ticks*0.075);
+            Vec3 spark=origin.add(side.scale(Math.cos(a)*r))
+                .add(up.scale(Math.sin(a)*r));
+            level.sendParticles(i%3==0?GOLD:CRIMSON,
+                spark.x,spark.y,spark.z,1,0,0,0,0);
         }
     }
 
