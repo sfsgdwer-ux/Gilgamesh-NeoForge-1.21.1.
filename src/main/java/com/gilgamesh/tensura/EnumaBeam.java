@@ -43,6 +43,9 @@ public final class EnumaBeam {
     // Keep the visible beam outside the first-person camera and in front of
     // the player's third-person silhouette. Hit detection still starts near the eye.
     private static final double VFX_FORWARD_OFFSET = 4.35;
+    // If the block is close, bring only a short beam section up to the wall.
+    // This fixes the old behavior that completely hid VFX below 4.35 blocks.
+    private static final double CLOSE_RANGE_VISIBLE_SEGMENT = 1.10;
     private static final double VFX_RADIUS_MIN = 0.58;
     private static final double VFX_RADIUS_MAX = 0.84;
     private static final float DAMAGE_PER_PULSE = 320f;
@@ -51,6 +54,8 @@ public final class EnumaBeam {
         new DustParticleOptions(new Vector3f(1f,0.11f,0.16f),1.7f);
     private static final DustParticleOptions GOLD =
         new DustParticleOptions(new Vector3f(1f,0.78f,0.15f),1.15f);
+    private static final DustParticleOptions RUPTURE =
+        new DustParticleOptions(new Vector3f(0.38f,0.025f,0.12f),1.55f);
 
     private static final Map<UUID,Visuals> VISUALS = new HashMap<>();
 
@@ -132,14 +137,37 @@ public final class EnumaBeam {
         double damageRadius=1.25+Math.min(1.6,heldTicks*0.055);
         double visibleRadius=Math.min(VFX_RADIUS_MAX,
             VFX_RADIUS_MIN+heldTicks*0.006);
-        Vec3 visualStart=collisionStart.add(look.scale(VFX_FORWARD_OFFSET));
-        double length=Math.max(0.0,hitDistance-VFX_FORWARD_OFFSET);
+        // For point-blank casts, show a compact impact beam directly in front
+        // of the wall, never beyond it. For long casts preserve camera offset.
+        double visualOffset=Math.min(VFX_FORWARD_OFFSET,
+            Math.max(0.0,hitDistance-CLOSE_RANGE_VISIBLE_SEGMENT));
+        Vec3 visualStart=collisionStart.add(look.scale(visualOffset));
+        double length=Math.max(0.0,hitDistance-visualOffset);
         Vec3 center=visualStart.add(look.scale(length*0.5));
+        boolean closeImpact=hit.getType()!=HitResult.Type.MISS
+            && hitDistance<=VFX_FORWARD_OFFSET+1.0;
+        double beamRadius=closeImpact?visibleRadius*0.77:visibleRadius;
 
         Quaternionf facing=new Quaternionf().rotationTo(
             new Vector3f(0,0,1),
             new Vector3f((float)look.x,(float)look.y,(float)look.z).normalize());
-        boolean firing=heldTicks>=CHARGE_TICKS && length>=0.25;
+        boolean firing=heldTicks>=CHARGE_TICKS;
+        if(firing && length<0.25) {
+            // At literally touching range, suppress models to protect camera,
+            // but still show a short crimson/amber impact pulse.
+            hide(visuals.core,end,facing);
+            hide(visuals.aura,end,facing);
+            for(Display.ItemDisplay d:visuals.spirals) hide(d,end,facing);
+            for(Display.ItemDisplay d:visuals.shocks) hide(d,end,facing);
+            for(Display.ItemDisplay d:visuals.rings) hide(d,end,facing);
+            if(heldTicks%2==0) {
+                drawCloseImpact(level,end,look,0.55,heldTicks);
+                damageEntities(level,player,collisionStart,end,damageRadius);
+            }
+            if(heldTicks%5==0)
+                destroyAlongBeam(level,player,collisionStart,end,damageRadius*0.82);
+            return;
+        }
         if(!firing) {
             // Charge phase: keep the entire beam hidden until the sword is
             // ready. Show multiple tight rotating rings ahead of the camera.
@@ -167,13 +195,13 @@ public final class EnumaBeam {
         // independently rotating helices and crimson-black fractures.
         float breathing=(float)(1.0+0.045*Math.sin(heldTicks*0.18));
         pose(visuals.core,center,new Quaternionf(facing),
-            (float)(visibleRadius*1.45),(float)(visibleRadius*1.45),(float)length);
+            (float)(beamRadius*1.45),(float)(beamRadius*1.45),(float)length);
         pose(visuals.aura,center,new Quaternionf(facing).rotateZ(heldTicks*0.095f),
-            (float)(visibleRadius*1.35*breathing),
-            (float)(visibleRadius*1.35*breathing),(float)length);
+            (float)(beamRadius*1.35*breathing),
+            (float)(beamRadius*1.35*breathing),(float)length);
         for(int i=0;i<2;i++) {
             float roll=heldTicks*(i==0?0.165f:-0.13f)+(float)(i*Math.PI);
-            float r=(float)(visibleRadius*OVERDRIVE_RIBBON_WIDTH*(i==0?1.0:0.92));
+            float r=(float)(beamRadius*OVERDRIVE_RIBBON_WIDTH*(i==0?1.0:0.92));
             pose(visuals.spirals[i],center,new Quaternionf(facing).rotateZ(roll),
                 r,r,(float)length);
         }
@@ -181,11 +209,14 @@ public final class EnumaBeam {
         // Source/middle/impact runes rotate at independent speeds. Unlike the
         // old giant discs, all stay within a narrow band around the attack.
         for(int i=0;i<3;i++) {
-            double offset=i==2?Math.max(0.5,length-1.2):
-                Math.min(length*0.72,0.8+i*4.1);
-            Vec3 ringPos=visualStart.add(look.scale(offset));
+            // If near a wall, spread runes along the available short section
+            // instead of stacking three huge overlapping disks on the camera.
+            double offset=closeImpact?length*(i+1)/4.0:
+                (i==2?Math.max(0.5,length-1.2):
+                    Math.min(length*0.72,0.8+i*4.1));
+            Vec3 ringPos=visualStart.add(look.scale(Math.min(length,offset)));
             float angle=heldTicks*(i==1?-0.12f:0.11f)+(float)(i*Math.PI/3.0);
-            float size=(float)(visibleRadius*(1.35+0.18*i));
+            float size=(float)(beamRadius*(1.35+0.18*i)*(closeImpact?0.72:1.0));
             pose(visuals.rings[i],ringPos,new Quaternionf(facing).rotateZ(angle),
                 size,size,0.20f);
         }
@@ -194,8 +225,8 @@ public final class EnumaBeam {
         // enormous white flashes. The wave alternates with a gold outline.
         for(int i=0;i<visuals.shocks.length;i++) {
             float wave=((heldTicks-CHARGE_TICKS+i*6)%12)/12f;
-            float scale=(float)(visibleRadius*OVERDRIVE_IMPACT_WIDTH*
-                (0.48+wave*1.35));
+            float scale=(float)(beamRadius*OVERDRIVE_IMPACT_WIDTH*
+                (0.48+wave*(closeImpact?1.1:1.35)));
             pose(visuals.shocks[i],end.subtract(look.scale(0.28)),
                 new Quaternionf(facing).rotateZ(
                     heldTicks*(i==0?0.055f:-0.08f)+i*0.8f),
@@ -203,7 +234,10 @@ public final class EnumaBeam {
         }
 
         if(heldTicks%2==0) {
-            drawParticles(level,visualStart,look,length,visibleRadius,heldTicks);
+            drawParticles(level,visualStart,look,length,beamRadius,heldTicks);
+            if(hit.getType()!=HitResult.Type.MISS)
+                drawCloseImpact(level,end,look,
+                    Math.min(1.65,0.95+damageRadius*0.15),heldTicks);
             damageEntities(level,player,collisionStart,end,damageRadius);
         }
         if(heldTicks%5==0) {
@@ -228,6 +262,35 @@ public final class EnumaBeam {
                 .add(up.scale(Math.sin(a)*r));
             level.sendParticles(i%3==0?GOLD:CRIMSON,
                 spark.x,spark.y,spark.z,1,0,0,0,0);
+        }
+    }
+
+    /**
+     * Close-range impact: two staggered, perspective-safe particle rings
+     * plus sharp streaks. Red/gold contrast remains visible against stone
+     * without turning the whole display into a white wall of light.
+     */
+    private static void drawCloseImpact(ServerLevel level,Vec3 hit,Vec3 look,
+            double radius,int ticks) {
+        Vec3 side=look.cross(new Vec3(0,1,0));
+        if(side.lengthSqr()<0.00001) side=new Vec3(1,0,0);
+        side=side.normalize();
+        Vec3 up=side.cross(look).normalize();
+        for(int layer=0;layer<2;layer++) {
+            double r=radius*(layer==0?0.68:1.15)
+                *(0.88+0.10*Math.sin(ticks*0.23+layer));
+            for(int i=0;i<12;i++) {
+                double phase=i*Math.PI/6.0+ticks*(layer==0?0.19:-0.13);
+                Vec3 pos=hit.add(side.scale(Math.cos(phase)*r))
+                    .add(up.scale(Math.sin(phase)*r));
+                level.sendParticles((i+layer)%4==0?GOLD:
+                    (layer==0?CRIMSON:RUPTURE),
+                    pos.x,pos.y,pos.z,1,0,0,0,0);
+            }
+        }
+        if(ticks%4==0) {
+            level.sendParticles(ParticleTypes.END_ROD,
+                hit.x,hit.y,hit.z,3,0.12,0.12,0.12,0.013);
         }
     }
 
