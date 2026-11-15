@@ -79,7 +79,7 @@ public final class GoldenGates {
         final List<Shot> shots = new ArrayList<>();
         long heartbeat;
         long nextFire;
-        long openingAt;
+        final long openingAt;
         int wave;
         Active(ServerPlayer p,boolean surround,int count) {
             owner=p.getUUID(); level=p.serverLevel();heartbeat=level.getGameTime();
@@ -113,7 +113,9 @@ public final class GoldenGates {
             return;
         }
         Active a=ACTIVE.get(id);
-        if(a!=null && a.surround==surround && a.gateCount==count) {
+        // A held cast owns its portal entities until release. Changing mastery
+        // may change the requested count, but must not tear down the open gates.
+        if(a!=null && a.level==player.serverLevel() && a.surround==surround) {
             a.heartbeat=player.serverLevel().getGameTime();
             return;
         }
@@ -254,8 +256,9 @@ public final class GoldenGates {
         }
         if(now>=a.nextFire) {
             fireWave(a,p,forward,side);
-            a.nextFire=now+NEXT_WAVE_DELAY+OPEN_TICKS;
-            a.openingAt=now+NEXT_WAVE_DELAY;
+            // Only the first activation animates the portals opening.
+            // Reuse these same open gate entities for every subsequent wave.
+            a.nextFire=now+NEXT_WAVE_DELAY;
         }
     }
     private static void drawPortal(ServerLevel level,Vec3 center,Vec3 right,float progress) {
