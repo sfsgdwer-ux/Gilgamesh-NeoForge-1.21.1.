@@ -37,6 +37,11 @@ import org.joml.Vector3f;
 @EventBusSubscriber(modid=GilgameshMod.MODID)
 public final class EnumaBeam {
     private static final double RANGE = 64.0;
+    // Keep the visible beam outside the first-person camera and in front of
+    // the player's third-person silhouette. Hit detection still starts near the eye.
+    private static final double VFX_FORWARD_OFFSET = 4.35;
+    private static final double VFX_RADIUS_MIN = 0.58;
+    private static final double VFX_RADIUS_MAX = 0.84;
     private static final float DAMAGE_PER_PULSE = 320f;
     private static final int MAX_BLOCKS_PER_SWEEP = 32;
     private static final DustParticleOptions CRIMSON =
@@ -103,40 +108,60 @@ public final class EnumaBeam {
         visuals.heartbeat=level.getGameTime();
 
         Vec3 look=player.getLookAngle().normalize();
-        Vec3 rayOrigin=player.getEyePosition().add(look.scale(1.55));
-        Vec3 far=rayOrigin.add(look.scale(RANGE));
-        var hit=level.clip(new ClipContext(rayOrigin,far,
+        Vec3 collisionStart=player.getEyePosition().add(look.scale(0.55));
+        Vec3 far=collisionStart.add(look.scale(RANGE));
+        var hit=level.clip(new ClipContext(collisionStart,far,
             ClipContext.Block.COLLIDER,ClipContext.Fluid.NONE,player));
         Vec3 end=hit.getType()==HitResult.Type.MISS?far:hit.getLocation();
-        double length=Math.max(0.5,rayOrigin.distanceTo(end));
-        Vec3 center=rayOrigin.add(look.scale(length*0.5));
-        double radius=1.25+Math.min(1.6,heldTicks*0.055);
+        double hitDistance=collisionStart.distanceTo(end);
+        // The beam keeps the same game rules, but its rendered volume is
+        // intentionally much thinner. Previously radius*5 blocked the camera.
+        double damageRadius=1.25+Math.min(1.6,heldTicks*0.055);
+        double visibleRadius=Math.min(VFX_RADIUS_MAX,
+            VFX_RADIUS_MIN+heldTicks*0.006);
+        Vec3 visualStart=collisionStart.add(look.scale(VFX_FORWARD_OFFSET));
+        double length=Math.max(0.0,hitDistance-VFX_FORWARD_OFFSET);
+        Vec3 center=visualStart.add(look.scale(length*0.5));
 
-        // 1-block native model is elongated along its local +Z axis.
-        // Ring models spin in their local XY plane about that same axis.
         Quaternionf facing=new Quaternionf().rotationTo(
             new Vector3f(0,0,1),
             new Vector3f((float)look.x,(float)look.y,(float)look.z).normalize());
-        pose(visuals.core,center,new Quaternionf(facing),
-            (float)(radius*5.0),(float)(radius*5.0),(float)length);
-        pose(visuals.aura,center,new Quaternionf(facing).rotateZ(heldTicks*0.075f),
-            (float)(radius*2.55),(float)(radius*2.55),(float)length);
+        if(length<0.25) {
+            // Wall or entity right in front of the player's face. Hide large
+            // displays instead of placing a giant glowing plane on the camera.
+            pose(visuals.core,visualStart,new Quaternionf(facing),0.001f,0.001f,0.001f);
+            pose(visuals.aura,visualStart,new Quaternionf(facing),0.001f,0.001f,0.001f);
+            for(Display.ItemDisplay ring:visuals.rings)
+                pose(ring,visualStart,new Quaternionf(facing),0.001f,0.001f,0.001f);
+        } else {
+            // Models are translucent original sprites rather than opaque
+            // glowstone cubes. Each display is reused for the held cast.
+            float breathing=(float)(1.0+0.045*Math.sin(heldTicks*0.18));
+            pose(visuals.core,center,new Quaternionf(facing),
+                (float)(visibleRadius*1.45),(float)(visibleRadius*1.45),(float)length);
+            pose(visuals.aura,center,new Quaternionf(facing).rotateZ(heldTicks*0.095f),
+                (float)(visibleRadius*1.35*breathing),
+                (float)(visibleRadius*1.35*breathing),(float)length);
 
-        for(int i=0;i<3;i++) {
-            double offset=Math.min(length*0.85,1.4+2.3*i);
-            Vec3 ringPos=rayOrigin.add(look.scale(offset));
-            float angle=(heldTicks*(i==1?-0.14f:0.13f))+(float)(i*Math.PI/3.0);
-            float size=(float)(radius*(3.9+0.25*i));
-            pose(visuals.rings[i],ringPos,new Quaternionf(facing).rotateZ(angle),
-                size,size,0.65f);
+            for(int i=0;i<3;i++) {
+                double offset=i==2?Math.max(0.5,length-1.1):
+                    Math.min(length*0.8,1.5+i*3.2);
+                Vec3 ringPos=visualStart.add(look.scale(offset));
+                float angle=heldTicks*(i==1?-0.09f:0.105f)+(float)(i*Math.PI/3.0);
+                float size=(float)(visibleRadius*(1.45+0.24*i));
+                pose(visuals.rings[i],ringPos,
+                    new Quaternionf(facing).rotateZ(angle),
+                    size,size,0.24f);
+            }
         }
 
         if(heldTicks%2==0) {
-            drawParticles(level,rayOrigin,look,length,radius,heldTicks);
-            damageEntities(level,player,rayOrigin,end,radius);
+            if(length>0.25)
+                drawParticles(level,visualStart,look,length,visibleRadius,heldTicks);
+            damageEntities(level,player,collisionStart,end,damageRadius);
         }
         if(heldTicks%5==0) {
-            destroyAlongBeam(level,player,rayOrigin,end,radius*0.82);
+            destroyAlongBeam(level,player,collisionStart,end,damageRadius*0.82);
         }
     }
 
@@ -154,7 +179,7 @@ public final class EnumaBeam {
         side=side.normalize();
         Vec3 up=side.cross(look).normalize();
         // Keep particle packets bounded; 3D model provides the solid beam.
-        int samples=Math.min(36,Math.max(8,(int)(length/2.2)));
+        int samples=Math.min(20,Math.max(4,(int)(length/3.6)));
         for(int i=0;i<samples;i++) {
             double dist=length*(i+0.5)/samples;
             Vec3 at=start.add(look.scale(dist));
@@ -164,10 +189,16 @@ public final class EnumaBeam {
             level.sendParticles(i%3==0?GOLD:CRIMSON,spark.x,spark.y,spark.z,1,0,0,0,0);
         }
         Vec3 tip=start.add(look.scale(length));
-        level.sendParticles(ParticleTypes.END_ROD,tip.x,tip.y,tip.z,4,
-            radius*0.25,radius*0.25,radius*0.25,0.03);
-        if(ticks%6==0) level.sendParticles(ParticleTypes.FLASH,
-            tip.x,tip.y,tip.z,1,0,0,0,0);
+        level.sendParticles(ParticleTypes.END_ROD,tip.x,tip.y,tip.z,2,
+            radius*0.13,radius*0.13,radius*0.13,0.013);
+        // Impact spirals remain saturated crimson and gold; no white screen flash.
+        if(ticks%4==0) for(int i=0;i<6;i++) {
+            double a=i*Math.PI/3.0+ticks*0.23;
+            Vec3 impact=tip.add(side.scale(Math.cos(a)*radius*1.3))
+                .add(up.scale(Math.sin(a)*radius*1.3));
+            level.sendParticles(i%2==0?GOLD:CRIMSON,
+                impact.x,impact.y,impact.z,1,0,0,0,0);
+        }
     }
 
     private static void damageEntities(ServerLevel level,ServerPlayer caster,
