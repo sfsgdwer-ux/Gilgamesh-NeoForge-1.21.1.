@@ -28,6 +28,24 @@ jobs:
             echo "DEPENDENCY $f"
             jar tf "$f" | grep -E '(^io/github/manasmods/manascore/skill/api/SkillAPI.class$|^META-INF/jarjar/|manascore.*skill.*jar$|^io/github/manasmods/tensura/ability/skill/Skill.class$)' | head -35 || true
           done
+      - name: Inspect Tensura energy and skill integration APIs
+        if: success()
+        run: |
+          TENSURA="$(find "$HOME/.gradle/caches/modules-2/files-2.1/curse.maven/tensura-reincarnated-643695" -name '*.jar' -print -quit)"
+          echo "=== EnergyHelper public API ==="
+          javap -classpath "$TENSURA" -public io.github.manasmods.tensura.util.EnergyHelper | head -110 || true
+          echo "=== Energy/Stats classes ==="
+          jar tf "$TENSURA" | grep -Ei '(Magicule|Aura|Energy|Stat).*(\.class)
+        run: |
+          mkdir -p build/release/mods
+          cp build/libs/*.jar build/release/mods/
+          cp INSTALL_TH.md build/release/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Gilgamesh-v1.4.0-Native-Ultimate-Skill
+          path: build/release/
+          if-no-files-found: error
+ | head -110 || true
       - name: Assemble single JAR installation
         run: |
           mkdir -p build/release/mods
