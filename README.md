@@ -1,4 +1,4 @@
-# Gilgamesh, Lord of Treasures — v1.7.3 Experimental
+# Gilgamesh, Lord of Treasures — v1.7.5 Experimental
 
 **Minecraft Java 1.21.1 · NeoForge 21.1.265 · Native Ultimate Skill**
 
@@ -18,6 +18,15 @@ The Gilgamesh skill is registered under `gilgamesh_tensura:gilgamesh` with **8 m
 | Ea: Sword of Rupture | Requires mastery 2,000; deducts 1,000,000 maximum AP; grants weapon |
 | Create Axe | Grants one indestructible axe at cost 1,000,000 MP |
 | Enuma Elish | Requires Ea held, costs 100,000 MP/s, raycast 2,000 Genesis damage and drains 0.05% of target's maximum MP per second |
+
+## Skill icon and point-blank Enuma Elish fixes in v1.7.5
+- **Fixes the Ultimate Skill icon path**: Tensura's Skill GUI expects a full texture resource location, including `textures/` and `.png`. The skill now returns `gilgamesh_tensura:textures/icons/skills/gilgamesh.png`.
+- The GitHub CI build generates a fully working original fallback icon. A private user-supplied icon image is overlaid in the local JAR handed off in chat, not published in the repository.
+- **Fixes near-wall Enuma VFX invisibility**: previously the visible beam always began 4.35 blocks away, causing it to disappear completely when striking a nearby wall. The effective visual origin now automatically moves to ~1.1 blocks before the surface; longer shots retain the safe first-person camera offset.
+- Adds **two concentric dynamic crimson/amber rupture impact rings** at the hit surface while keeping a compact beam segment. This is explicitly designed for screenshots taken at near-wall range.
+- Beam core and 3D helices get a smaller visual scale for close-range strikes, preventing a solid white obstruction of the character/camera. Gameplay targeting, cost, damage and terrain destruction remain unchanged.
+- Existing Overdrive animations, 7 skill modes, 3×3 Gate of Babylon and Ea recall remain intact.
+- **Needs in-game visual validation**. Gradle compile confirms API compatibility only, not the visual outcome.
 
 ## Enuma Elish Overdrive + stable projectile flight in v1.7.3
 - **Enuma Elish** features an original 12-tick charging stage with three rotating rune rings and crimson/gold particles converging near the source. No beam damage or block breaking occurs before the charge completes.
