@@ -11,6 +11,8 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import io.github.manasmods.manascore.skill.api.SkillAPI;
+import io.github.manasmods.manascore.skill.api.SkillEvents;
+import dev.architectury.event.EventResult;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.registries.DeferredItem;
@@ -43,6 +45,10 @@ public final class GilgameshMod {
     public GilgameshMod(IEventBus bus) {
         ITEMS.register(bus);
         MENUS.register(bus);
+        // Enkidu seals native skill activations while the spell is in effect.
+        SkillEvents.ACTIVATE_SKILL.register((skill, owner, keyNumber, mode) ->
+            GilgameshAbilities.isEnkiduBound(owner)
+                ? EventResult.interruptFalse() : EventResult.pass());
         bus.addListener(this::registerSkills);
     }
 

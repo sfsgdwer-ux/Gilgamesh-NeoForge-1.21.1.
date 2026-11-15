@@ -53,6 +53,12 @@ public final class GilgameshAbilities {
         return nearest;
     }
 
+    public static boolean isEnkiduBound(LivingEntity entity) {
+        Binding bound=BINDS.get(entity.getUUID());
+        return bound!=null && bound.level==entity.level()
+            && bound.level.getGameTime()<bound.expiry;
+    }
+
     public static boolean hasEnkiduTarget(ServerPlayer p) {
         return aimedTarget(p,40)!=null;
     }

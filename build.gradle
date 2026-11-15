@@ -19,6 +19,7 @@ neoForge {
 repositories {
     // Compiled against official release files; never redistribute these dependencies.
     maven { url = 'https://cursemaven.com' }
+    maven { url = 'https://maven.architectury.dev' }
 }
 
 // ManasCore 4.0.0.2 ships its SkillAPI in a nested NeoForge Jar-in-Jar.
@@ -32,6 +33,7 @@ dependencies {
     manasCorePacked 'curse.maven:manascore-619025:8022425'
     compileOnly 'curse.maven:manascore-619025:8022425'
     compileOnly 'curse.maven:tensura-reincarnated-643695:9289888'
+    compileOnly 'dev.architectury:architectury-neoforge:13.0.8'
     compileOnly fileTree(dir: extractedManas, include: '*.jar')
 }
 
