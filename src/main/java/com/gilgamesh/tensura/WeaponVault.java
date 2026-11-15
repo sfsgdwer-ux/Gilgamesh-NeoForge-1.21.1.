@@ -48,13 +48,17 @@ public final class WeaponVault {
     public static SimpleContainer get(ServerPlayer player) {
         CompoundTag root=player.getPersistentData().getCompound(KEY);
         ListTag list=root.getList("weapons",Tag.TAG_COMPOUND);
-        SimpleContainer container=new SimpleContainer(CAPACITY) {
-            @Override
-            public void setChanged() {
+        // Suppress writes while loading to avoid re-saving a partially restored vault.
+        final class PersistentVault extends SimpleContainer {
+            private boolean loading=true;
+            PersistentVault() { super(CAPACITY); }
+            @Override public void setChanged() {
                 super.setChanged();
-                save(player,this);
+                if(!loading) save(player,this);
             }
-        };
+            void ready() { loading=false; }
+        }
+        PersistentVault container=new PersistentVault();
         // Read each entry first to avoid rewriting the saved inventory while loading.
         ItemStack[] loaded=new ItemStack[CAPACITY];
         for(int i=0;i<CAPACITY;i++)loaded[i]=ItemStack.EMPTY;
@@ -64,7 +68,8 @@ public final class WeaponVault {
             if(slot<0||slot>=CAPACITY)continue;
             loaded[slot]=ItemStack.parseOptional(player.registryAccess(),entry.getCompound("stack"));
         }
-        for(int i=0;i<CAPACITY;i++)container.setItem(i,loaded[i]);
+        for(int i=0;i<CAPACITY;i++) container.setItem(i,loaded[i]);
+        container.ready();
         return container;
     }
 

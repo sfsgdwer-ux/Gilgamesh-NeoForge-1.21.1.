@@ -16,6 +16,8 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.level.ClipContext;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
@@ -57,6 +59,21 @@ public final class GilgameshAbilities {
         Binding bound=BINDS.get(entity.getUUID());
         return bound!=null && bound.level==entity.level()
             && bound.level.getGameTime()<bound.expiry;
+    }
+
+    /**
+     * Resolve the selected world target once when Surround Attack begins.
+     * Prefer an entity actually intersected by the player's crosshair;
+     * otherwise respect the nearest solid block in the ray.
+     */
+    public static Vec3 selectSurroundTarget(ServerPlayer player) {
+        LivingEntity target=aimedTarget(player,40);
+        if(target!=null) return target.getBoundingBox().getCenter();
+        Vec3 eye=player.getEyePosition();
+        Vec3 end=eye.add(player.getLookAngle().normalize().scale(32));
+        var block=player.serverLevel().clip(new ClipContext(
+            eye,end,ClipContext.Block.COLLIDER,ClipContext.Fluid.NONE,player));
+        return block.getType()==HitResult.Type.MISS?end:block.getLocation();
     }
 
     public static boolean hasEnkiduTarget(ServerPlayer p) {

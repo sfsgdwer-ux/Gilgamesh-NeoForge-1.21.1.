@@ -25,6 +25,9 @@ import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.level.ClipContext;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
@@ -80,7 +83,7 @@ public final class GoldenGates {
         Active(ServerPlayer p,boolean surround,int count) {
             owner=p.getUUID(); level=p.serverLevel();heartbeat=level.getGameTime();
             this.surround=surround; this.gateCount=Math.max(1,Math.min(MAX_GATES,count));
-            this.target=p.getEyePosition().add(p.getLookAngle().normalize().scale(12));
+            this.target=GilgameshAbilities.selectSurroundTarget(p);
             openingAt=heartbeat; nextFire=heartbeat+OPEN_TICKS;
         }
     }
@@ -159,7 +162,7 @@ public final class GoldenGates {
     }
     private static void poseGate(Display.ItemDisplay gate,Vec3 flat,float scale) {
         Quaternionf rot=new Quaternionf().rotationTo(
-            new Vector3f(0,0,1),new Vector3f((float)flat.x,0,(float)flat.z));
+            new Vector3f(0,0,1),new Vector3f((float)flat.x,(float)flat.y,(float)flat.z).normalize());
         gate.setTransformation(new Transformation(
             new Vector3f(),rot,new Vector3f(scale,scale,scale),new Quaternionf()));
     }
@@ -213,23 +216,37 @@ public final class GoldenGates {
             Shot s=shots.next();
             s.ticks++;
             Vec3 previous=s.display.position();
-            Vec3 next=previous.add(s.direction.scale(SHOT_SPEED));
-            s.display.setPos(next.x,next.y,next.z);
+            Vec3 desired=previous.add(s.direction.scale(SHOT_SPEED));
+            BlockHitResult block=a.level.clip(new ClipContext(
+                previous,desired,ClipContext.Block.COLLIDER,ClipContext.Fluid.NONE,p));
+            boolean blocked=block.getType()!=HitResult.Type.MISS;
+            Vec3 endpoint=blocked?block.getLocation():desired;
+            // A broad-phase AABB and narrow-phase segment intersection prevent
+            // tunneling through entities at 2.7 blocks/tick.
+            AABB area=new AABB(previous,endpoint).inflate(0.55);
+            LivingEntity closest=null;
+            double closestDistance=Double.POSITIVE_INFINITY;
+            for(LivingEntity candidate:a.level.getEntitiesOfClass(LivingEntity.class,area)) {
+                if(!candidate.isAlive() || candidate.getUUID().equals(s.owner)
+                    || p.isAlliedTo(candidate)) continue;
+                var intersection=candidate.getBoundingBox().inflate(0.35).clip(previous,endpoint);
+                if(intersection.isEmpty())continue;
+                double distance=previous.distanceToSqr(intersection.get());
+                if(distance<closestDistance) {
+                    closestDistance=distance;
+                    closest=candidate;
+                }
+            }
+            if(closest!=null) {
+                closest.hurt(p.damageSources().playerAttack(p),s.damage);
+            }
+            s.display.setPos(endpoint.x,endpoint.y,endpoint.z);
             if(s.ticks%2==0) {
-                Vec3 trail=next.subtract(s.direction.scale(0.6));
+                Vec3 trail=endpoint.subtract(s.direction.scale(0.6));
                 a.level.sendParticles(ParticleTypes.END_ROD,
                     trail.x,trail.y,trail.z,1,0.03,0.03,0.03,0.003);
             }
-            boolean hit=false;
-            // Sweep between positions: checking only 'next' skipped targets
-            // when projectiles moved more than one block in one tick.
-            AABB area=new AABB(previous,next).inflate(0.55);
-            for(LivingEntity target:a.level.getEntitiesOfClass(LivingEntity.class,area)) {
-                if(target.getUUID().equals(s.owner) || !target.isAlive()) continue;
-                target.hurt(p.damageSources().playerAttack(p),s.damage);
-                hit=true;break;
-            }
-            if(hit || s.ticks>=SHOT_LIFE || s.display.isRemoved()) {
+            if(closest!=null || blocked || s.ticks>=SHOT_LIFE || s.display.isRemoved()) {
                 if(!s.display.isRemoved()) s.display.discard();
                 shots.remove();
             }
