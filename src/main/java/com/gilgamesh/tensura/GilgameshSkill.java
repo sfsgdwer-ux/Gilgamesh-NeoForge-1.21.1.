@@ -18,7 +18,7 @@ public final class GilgameshSkill extends Skill {
     @Override
     public ResourceLocation getSkillIcon() {
         return ResourceLocation.fromNamespaceAndPath(
-            GilgameshMod.MODID, "icons/skills/gilgamesh");
+            GilgameshMod.MODID, "textures/icons/skills/gilgamesh.png");
     }
 
     @Override
