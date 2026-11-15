@@ -30,6 +30,13 @@ public final class GilgameshMod {
             ResourceLocation.fromNamespaceAndPath(MODID, "genesis"));
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(MODID);
     public static final DeferredItem<Item> GATE_FRAME = ITEMS.registerSimpleItem("gate_frame", new Item.Properties());
+    // Invisible as inventory tools, visible only as ItemDisplay 3D energy assets.
+    public static final DeferredItem<Item> ENUMA_BEAM_CORE =
+        ITEMS.registerSimpleItem("enuma_beam_core", new Item.Properties());
+    public static final DeferredItem<Item> ENUMA_BEAM_AURA =
+        ITEMS.registerSimpleItem("enuma_beam_aura", new Item.Properties());
+    public static final DeferredItem<Item> ENUMA_BEAM_RING =
+        ITEMS.registerSimpleItem("enuma_beam_ring", new Item.Properties());
 
     public static final DeferredItem<Item> GILGAMESH_ICON = ITEMS.registerSimpleItem("gilgamesh_icon", new Item.Properties());
 
