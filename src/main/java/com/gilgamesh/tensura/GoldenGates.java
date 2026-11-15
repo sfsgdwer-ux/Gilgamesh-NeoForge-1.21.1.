@@ -20,6 +20,9 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.AxeItem;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.ItemAttributeModifiers;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -37,14 +40,13 @@ import com.mojang.math.Transformation;
  */
 @EventBusSubscriber(modid=GilgameshMod.MODID)
 public final class GoldenGates {
-    private static final int GATES=5;
+    private static final int MAX_GATES=12;
     private static final int WAVE=16;
     private static final int OPEN_TICKS=18;
     private static final int NEXT_WAVE_DELAY=22;
     private static final int SHOT_LIFE=19;
     private static final double SHOT_SPEED=2.7;
-    private static final double[] X={-2.7,-1.38,0,1.38,2.7};
-    private static final double[] Y={0.1,0.65,0.9,0.65,0.1};
+    // Portal positions are generated from mastery and current casting mode.
     private static final Map<UUID,Active> ACTIVE=new HashMap<>();
     private static final DustParticleOptions GOLD =
         new DustParticleOptions(new Vector3f(1.0f,0.78f,0.11f),1.3f);
@@ -57,21 +59,28 @@ public final class GoldenGates {
         final UUID owner;
         final ServerLevel level;
         int ticks;
-        Shot(Display.ItemDisplay d,Vec3 dir,ServerPlayer p) {
+        final float damage;
+        Shot(Display.ItemDisplay d,Vec3 dir,ServerPlayer p,float damage) {
             display=d;direction=dir;owner=p.getUUID();level=p.serverLevel();
+            this.damage=damage;
         }
     }
     private static final class Active {
         final UUID owner;
         final ServerLevel level;
-        final Display.ItemDisplay[] gates = new Display.ItemDisplay[GATES];
+        final Display.ItemDisplay[] gates = new Display.ItemDisplay[MAX_GATES];
+        final int gateCount;
+        final boolean surround;
+        final Vec3 target;
         final List<Shot> shots = new ArrayList<>();
         long heartbeat;
         long nextFire;
         long openingAt;
         int wave;
-        Active(ServerPlayer p) {
+        Active(ServerPlayer p,boolean surround,int count) {
             owner=p.getUUID(); level=p.serverLevel();heartbeat=level.getGameTime();
+            this.surround=surround; this.gateCount=Math.max(1,Math.min(MAX_GATES,count));
+            this.target=p.getEyePosition().add(p.getLookAngle().normalize().scale(12));
             openingAt=heartbeat; nextFire=heartbeat+OPEN_TICKS;
         }
     }
@@ -84,15 +93,15 @@ public final class GoldenGates {
             && player.serverLevel().getGameTime() - active.heartbeat <= 9L;
     }
 
-    public static void skillHeld(LivingEntity entity) {
-        if (entity instanceof ServerPlayer player) hold(player, true);
+    public static void skillHeld(LivingEntity entity,boolean surround,int count) {
+        if (entity instanceof ServerPlayer player) hold(player, true, surround, count);
     }
 
     public static void skillReleased(LivingEntity entity) {
-        if (entity instanceof ServerPlayer player) hold(player, false);
+        if (entity instanceof ServerPlayer player) hold(player, false, false, 0);
     }
 
-    private static void hold(ServerPlayer player, boolean pressed) {
+    private static void hold(ServerPlayer player, boolean pressed, boolean surround, int count) {
         UUID id=player.getUUID();
         if (!pressed) {
             Active old=ACTIVE.remove(id);
@@ -100,13 +109,14 @@ public final class GoldenGates {
             return;
         }
         Active a=ACTIVE.get(id);
-        if(a!=null) {
+        if(a!=null && a.surround==surround && a.gateCount==count) {
             a.heartbeat=player.serverLevel().getGameTime();
             return;
         }
-        a=new Active(player);
+        if(a!=null)close(a);
+        a=new Active(player,surround,count);
         ACTIVE.put(id,a);
-        for(int i=0;i<GATES;i++) {
+        for(int i=0;i<a.gateCount;i++) {
             Display.ItemDisplay d=new Display.ItemDisplay(EntityType.ITEM_DISPLAY,player.serverLevel());
             d.setItemStack(new ItemStack(GilgameshMod.GATE_FRAME.get()));
             d.setItemTransform(ItemDisplayContext.FIXED);
@@ -115,7 +125,8 @@ public final class GoldenGates {
             player.serverLevel().addFreshEntity(d);
             a.gates[i]=d;
         }
-        player.displayClientMessage(Component.literal("Golden Gates: opening 5 portals"),true);
+        player.displayClientMessage(Component.literal(
+            "Gate of Babylon: opening "+a.gateCount+" portals"),true);
     }
 
     private static void close(Active a) {
@@ -136,9 +147,15 @@ public final class GoldenGates {
     private static Vec3 right(Vec3 forward) {
         return new Vec3(forward.z,0,-forward.x);
     }
-    private static Vec3 gatePos(ServerPlayer p,int i,Vec3 forward,Vec3 right) {
-        return p.position().subtract(forward.scale(2.55))
-            .add(right.scale(X[i])).add(0,2.05+Y[i],0);
+    private static Vec3 gatePos(Active a,ServerPlayer p,int i,Vec3 forward,Vec3 right) {
+        if(a.surround) {
+            double t=2*Math.PI*i/a.gateCount;
+            return a.target.add(Math.cos(t)*4,1.5+0.4*Math.sin(2*t),Math.sin(t)*4);
+        }
+        double centered=i-(a.gateCount-1)/2.0;
+        return p.position().subtract(forward.scale(2.5))
+            .add(right.scale(centered*1.03))
+            .add(0,2.0+0.65*Math.cos(Math.PI*centered/Math.max(2,a.gateCount)),0);
     }
     private static void poseGate(Display.ItemDisplay gate,Vec3 flat,float scale) {
         Quaternionf rot=new Quaternionf().rotationTo(
@@ -182,19 +199,21 @@ public final class GoldenGates {
         Vec3 forward=horizontal(p);
         Vec3 side=right(forward);
         float opening=Math.min(1f,Math.max(0.08f,(now-a.openingAt)/(float)OPEN_TICKS));
-        for(int i=0;i<GATES;i++) {
+        for(int i=0;i<a.gateCount;i++) {
             Display.ItemDisplay gate=a.gates[i];
             if(gate==null || gate.isRemoved()) continue;
-            Vec3 center=gatePos(p,i,forward,side);
+            Vec3 center=gatePos(a,p,i,forward,side);
             gate.setPos(center.x,center.y,center.z);
-            poseGate(gate,forward,2.6f*opening);
+            Vec3 orientation=a.surround?a.target.subtract(center).normalize():forward;
+            poseGate(gate,orientation,2.6f*opening);
             if(now%3==0) drawPortal(a.level,center,side,opening);
         }
         Iterator<Shot> shots=a.shots.iterator();
         while(shots.hasNext()){
             Shot s=shots.next();
             s.ticks++;
-            Vec3 next=s.display.position().add(s.direction.scale(SHOT_SPEED));
+            Vec3 previous=s.display.position();
+            Vec3 next=previous.add(s.direction.scale(SHOT_SPEED));
             s.display.setPos(next.x,next.y,next.z);
             if(s.ticks%2==0) {
                 Vec3 trail=next.subtract(s.direction.scale(0.6));
@@ -204,10 +223,10 @@ public final class GoldenGates {
             boolean hit=false;
             // Sweep between positions: checking only 'next' skipped targets
             // when projectiles moved more than one block in one tick.
-            AABB area=new AABB(s.display.position(),next).inflate(0.55);
+            AABB area=new AABB(previous,next).inflate(0.55);
             for(LivingEntity target:a.level.getEntitiesOfClass(LivingEntity.class,area)) {
                 if(target.getUUID().equals(s.owner) || !target.isAlive()) continue;
-                target.hurt(p.damageSources().playerAttack(p),7.0f);
+                target.hurt(p.damageSources().playerAttack(p),s.damage);
                 hit=true;break;
             }
             if(hit || s.ticks>=SHOT_LIFE || s.display.isRemoved()) {
@@ -231,12 +250,23 @@ public final class GoldenGates {
         }
         level.sendParticles(ParticleTypes.END_ROD,center.x,center.y,center.z,1,0.12,0.24,0.12,0.01);
     }
+    private static float weaponDamage(ItemStack stack) {
+        double base=2;
+        ItemAttributeModifiers mods=stack.getOrDefault(
+            DataComponents.ATTRIBUTE_MODIFIERS,ItemAttributeModifiers.EMPTY);
+        for(ItemAttributeModifiers.Entry e:mods.modifiers()) {
+            if(e.attribute().equals(Attributes.ATTACK_DAMAGE))
+                base+=e.modifier().amount();
+        }
+        return (float)Math.max(1,Math.min(250,base));
+    }
+
     private static void fireWave(Active a,ServerPlayer p,Vec3 forward,Vec3 side) {
-        Container store=p.getEnderChestInventory();
+        Container store=WeaponVault.get(p);
         List<ItemStack> weapons=new ArrayList<>();
         for(int slot=0;slot<store.getContainerSize();slot++) {
             ItemStack stack=store.getItem(slot);
-            if(!stack.isEmpty()) weapons.add(stack.copyWithCount(1));
+            if(WeaponVault.isWeapon(stack)) weapons.add(stack.copyWithCount(1));
         }
         if(weapons.isEmpty()) {a.wave=0;return;}
         int waves=(weapons.size()+WAVE-1)/WAVE;
@@ -246,9 +276,9 @@ public final class GoldenGates {
         Vec3 aim=p.getLookAngle().normalize();
         for(int k=start;k<limit;k++) {
             int index=k-start;
-            int gate=index%GATES;
-            Vec3 center=gatePos(p,gate,forward,side);
-            int row=index/GATES;
+            int gate=index%a.gateCount;
+            Vec3 center=gatePos(a,p,gate,forward,side);
+            int row=index/a.gateCount;
             double xOffset=(row-1)*0.34;
             double yOffset=(row%2==0 ? -0.1:0.18);
             Vec3 spawn=center.add(side.scale(xOffset)).add(0,yOffset,0);
@@ -257,9 +287,10 @@ public final class GoldenGates {
             d.setItemTransform(ItemDisplayContext.FIXED);
             d.setNoGravity(true);
             d.setPos(spawn.x,spawn.y,spawn.z);
-            poseShot(d,aim,weapons.get(k));
+            Vec3 shotAim=a.surround?a.target.subtract(center).normalize():aim;
+            poseShot(d,shotAim,weapons.get(k));
             a.level.addFreshEntity(d);
-            a.shots.add(new Shot(d,aim,p));
+            a.shots.add(new Shot(d,shotAim,p,weaponDamage(weapons.get(k))));
         }
         // All the entities above are created in one server tick (no per-item delays).
         a.level.sendParticles(ParticleTypes.FLASH,p.getX(),p.getY()+2,p.getZ(),1,0,0,0,0);
@@ -281,8 +312,8 @@ public final class GoldenGates {
             .then(Commands.literal("count").executes(ctx->{
                 ServerPlayer p=ctx.getSource().getPlayerOrException();
                 int count=0;
-                Container store=p.getEnderChestInventory();
-                for(int i=0;i<store.getContainerSize();i++) if(!store.getItem(i).isEmpty()) count++;
+                Container store=WeaponVault.get(p);
+                for(int i=0;i<store.getContainerSize();i++) if(WeaponVault.isWeapon(store.getItem(i))) count++;
                 p.sendSystemMessage(Component.literal("Golden Gates: "+count+" filled slots, "+
                     ((count+WAVE-1)/WAVE)+" waves (max "+WAVE+" per wave)"));
                 return 1;
