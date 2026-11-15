@@ -41,6 +41,6 @@ jobs:
           cp INSTALL_TH.md build/release/
       - uses: actions/upload-artifact@v4
         with:
-          name: Gilgamesh-v1.7.0-Enuma-3D-VFX-Experimental
+          name: Gilgamesh-v1.7.1-Ea-Recall-Experimental
           path: build/release/
           if-no-files-found: error
