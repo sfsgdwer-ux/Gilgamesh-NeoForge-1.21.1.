@@ -1,4 +1,4 @@
-# Gilgamesh, Lord of Treasures — v1.7.0 Experimental
+# Gilgamesh, Lord of Treasures — v1.7.1 Experimental
 
 **Minecraft Java 1.21.1 · NeoForge 21.1.265 · Native Ultimate Skill**
 
@@ -18,6 +18,15 @@ The Gilgamesh skill is registered under `gilgamesh_tensura:gilgamesh` with **8 m
 | Ea: Sword of Rupture | Requires mastery 2,000; deducts 1,000,000 maximum AP; grants weapon |
 | Create Axe | Grants one indestructible axe at cost 1,000,000 MP |
 | Enuma Elish | Requires Ea held, costs 100,000 MP/s, raycast 2,000 Genesis damage and drains 0.05% of target's maximum MP per second |
+
+## Ea sword recall and re-summon in v1.7.1
+- The first unlock of the **Ea** skill at mastery 2000 charges 1,000,000 maximum AP exactly once. The sword's summon is thereafter a free toggle with the same skill button.
+- Press Ea while the sword is in the inventory to **seal the exact ItemStack**, including custom components, name, enchantments and durability into player-persistent NBT. Press Ea again to summon the same sword back to a free hand/inventory slot.
+- Ea is automatically sealed on player death; dropping it with Q also stores it without spawning an item. Player clone copies this mod's Ea state.
+- Ea items already present when upgrading from an older version are recognized and adopted on first recall without another permanent-AP cost.
+- Prevents creation of duplicates when a summoned sword was moved into a chest or another storage mod; bring that original sword back into the inventory to recall it.
+- If inventory is full, the stored sword stays safely sealed until a slot is available.
+- Other seven modes, 3D Enuma beam, damage, and 3×3 Gate of Babylon behavior remain unchanged.
 
 ## Native 3D Enuma Elish VFX in v1.7.0
 - **Enuma Elish** now maintains two elongated ItemDisplay models (hot core + red aura) and three independently rotating 3D energy rings while the key is held, adjusting orientation and size to the player's aim. The displays are reused per tick and cleaned on release, MP exhaustion, death/dimension change, or timeout.

@@ -127,12 +127,27 @@ public final class GilgameshSkill extends Skill {
                 GoldenGates.skillHeld(player,mode==SURROUND,gates);
             }
             case EA -> {
-                if(instance.getMastery()<2000) {
-                    player.displayClientMessage(Component.literal("Ea requires 2000 Mastery"),true);
+                // Pressing Ea toggles one persistent sword: summon -> seal -> summon.
+                // Existing swords from older releases are adopted at no extra cost.
+                if(EaRecall.hasEa(player)) {
+                    EaRecall.stash(player);
                     return;
                 }
-                if(!spendPermanentAura(player,1_000_000)) return;
-                GilgameshAbilities.giveEa(player);
+                if(!EaRecall.isUnlocked(player)) {
+                    if(instance.getMastery()<2000) {
+                        player.displayClientMessage(Component.literal("Ea requires 2000 Mastery"),true);
+                        return;
+                    }
+                    if(!EaRecall.hasRoom(player)) {
+                        player.displayClientMessage(Component.literal(
+                            "Make an empty inventory slot before unlocking Ea."),true);
+                        return;
+                    }
+                    // The permanent Aura cost is charged exactly once.
+                    if(!spendPermanentAura(player,1_000_000)) return;
+                    EaRecall.unlock(player);
+                }
+                EaRecall.summon(player);
             }
             case ENUMA -> {
                 if(!GilgameshAbilities.holdsEa(player))
