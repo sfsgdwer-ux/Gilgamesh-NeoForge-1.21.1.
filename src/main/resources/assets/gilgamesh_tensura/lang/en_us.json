@@ -1,8 +1,16 @@
 {
-  "key.gilgamesh_tensura.hold": "Hold Golden Gates",
-  "key.categories.gilgamesh_tensura": "Gilgamesh - Golden Gates",
   "item.gilgamesh_tensura.gate_frame": "Golden Gate Frame",
   "item.gilgamesh_tensura.gilgamesh_icon": "Gilgamesh Skill Icon",
+  "item.gilgamesh_tensura.ea_sword": "Ea - Sword of Rupture (Experimental)",
+  "item.gilgamesh_tensura.genesis_axe": "Genesis Axe",
   "gilgamesh_tensura.skill.gilgamesh": "Gilgamesh, Lord of Treasures",
-  "gilgamesh_tensura.skill.gilgamesh.description": "Ultimate Skill: Golden Gates. Open five gates and launch weapons copied from the Ender Chest while held."
+  "gilgamesh_tensura.skill.gilgamesh.description": "Ultimate Skill. 8 modes: territory, Enkidu, storehouse, direct gates, surround gates, Ea, axe, and Enuma Elish.",
+  "gilgamesh_tensura.skill.mode.territory": "Territory Creation",
+  "gilgamesh_tensura.skill.mode.enkidu": "Enkidu - Holy Chains",
+  "gilgamesh_tensura.skill.mode.storehouse": "King's Storehouse",
+  "gilgamesh_tensura.skill.mode.direct": "Gate of Babylon - Direct Fire",
+  "gilgamesh_tensura.skill.mode.surround": "Gate of Babylon - Surround Attack",
+  "gilgamesh_tensura.skill.mode.ea": "Ea - Sword of Rupture",
+  "gilgamesh_tensura.skill.mode.axe": "Create Axe",
+  "gilgamesh_tensura.skill.mode.enuma": "Enuma Elish"
 }

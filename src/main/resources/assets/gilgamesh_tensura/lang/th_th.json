@@ -1,8 +1,16 @@
 {
-  "key.gilgamesh_tensura.hold": "กดค้างเพื่อเปิดประตูทอง",
-  "key.categories.gilgamesh_tensura": "กิลกาเมช - ประตูทอง",
   "item.gilgamesh_tensura.gate_frame": "กรอบประตูทอง",
   "item.gilgamesh_tensura.gilgamesh_icon": "ไอคอนสกิลกิลกาเมช",
+  "item.gilgamesh_tensura.ea_sword": "เออา ดาบแห่งการแยกสลาย (รุ่นทดลอง)",
+  "item.gilgamesh_tensura.genesis_axe": "ขวานเจเนซิส",
   "gilgamesh_tensura.skill.gilgamesh": "กิลกาเมช ราชาแห่งคลังสมบัติ",
-  "gilgamesh_tensura.skill.gilgamesh.description": "อัลติเมตสกิล ประตูทอง เปิดประตู 5 วงและยิงอาวุธจำลองจากคลังเอนเดอร์เมื่อกดค้าง"
+  "gilgamesh_tensura.skill.gilgamesh.description": "อัลติเมตสกิล 8 โหมด: สร้างอาณาเขต เอนคิดู คลังสมบัติ ประตูบาบิโลนแบบตรงและล้อมเป้าหมาย เออา สร้างขวาน และเอนูมาเอลิช",
+  "gilgamesh_tensura.skill.mode.territory": "สร้างอาณาเขต (Territory Creation)",
+  "gilgamesh_tensura.skill.mode.enkidu": "เอนคิดู โซ่พันธนาการ",
+  "gilgamesh_tensura.skill.mode.storehouse": "คลังสมบัติราชา",
+  "gilgamesh_tensura.skill.mode.direct": "ประตูบาบิโลน ยิงตรง",
+  "gilgamesh_tensura.skill.mode.surround": "ประตูบาบิโลน ล้อมเป้าหมาย",
+  "gilgamesh_tensura.skill.mode.ea": "เออา ดาบแห่งการแยกสลาย",
+  "gilgamesh_tensura.skill.mode.axe": "สร้างขวาน",
+  "gilgamesh_tensura.skill.mode.enuma": "เอนูมาเอลิช"
 }
