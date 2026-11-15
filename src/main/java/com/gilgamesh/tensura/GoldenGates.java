@@ -44,13 +44,21 @@ import com.mojang.math.Transformation;
  */
 @EventBusSubscriber(modid=GilgameshMod.MODID)
 public final class GoldenGates {
-    private static final int MAX_GATES=12;
+    private static final int MAX_GATES=9;
     private static final int WAVE=16;
     private static final int OPEN_TICKS=18;
+    private static final int GATE_STAGGER_TICKS=3;
+    private static final double COLUMN_GAP=3.65;
+    private static final double ROW_GAP=3.45;
+    // Fill the central portal first, then the sides, then above and below.
+    // With nine portals this forms three complete rows of three.
+    private static final int[][] GRID_ORDER = {
+        {0,0}, {-1,0}, {1,0}, {0,1}, {0,-1}, {-1,1}, {1,1}, {-1,-1}, {1,-1}
+    };
     private static final int NEXT_WAVE_DELAY=22;
     private static final int SHOT_LIFE=19;
     private static final double SHOT_SPEED=2.7;
-    // Portal positions are generated from mastery and current casting mode.
+    // Portals are driven by the number of stored weapons, not mastery.
     private static final Map<UUID,Active> ACTIVE=new HashMap<>();
     private static final DustParticleOptions GOLD =
         new DustParticleOptions(new Vector3f(1.0f,0.78f,0.11f),1.3f);
@@ -73,19 +81,22 @@ public final class GoldenGates {
         final UUID owner;
         final ServerLevel level;
         final Display.ItemDisplay[] gates = new Display.ItemDisplay[MAX_GATES];
-        final int gateCount;
+        int gateCount;
+        final long[] gateOpeningAt = new long[MAX_GATES];
         final boolean surround;
         final Vec3 target;
         final List<Shot> shots = new ArrayList<>();
         long heartbeat;
         long nextFire;
-        final long openingAt;
         int wave;
         Active(ServerPlayer p,boolean surround,int count) {
             owner=p.getUUID(); level=p.serverLevel();heartbeat=level.getGameTime();
             this.surround=surround; this.gateCount=Math.max(1,Math.min(MAX_GATES,count));
-            this.target=GilgameshAbilities.selectSurroundTarget(p);
-            openingAt=heartbeat; nextFire=heartbeat+OPEN_TICKS;
+            this.target=surround?GilgameshAbilities.selectSurroundTarget(p):Vec3.ZERO;
+            for(int i=0;i<gateCount;i++)
+                gateOpeningAt[i]=heartbeat+i*GATE_STAGGER_TICKS;
+            // Complete the staggered first opening before the initial volley.
+            nextFire=heartbeat+OPEN_TICKS+(gateCount-1)*GATE_STAGGER_TICKS;
         }
     }
 
@@ -95,6 +106,16 @@ public final class GoldenGates {
         Active active = ACTIVE.get(player.getUUID());
         return active != null && active.level == player.serverLevel()
             && player.serverLevel().getGameTime() - active.heartbeat <= 9L;
+    }
+
+    /** Three weapons use one gate; every two beyond that adds one, up to 9. */
+    public static int gatesForStorehouse(ServerPlayer player) {
+        Container store=WeaponVault.get(player);
+        int weapons=0;
+        for(int i=0;i<store.getContainerSize();i++)
+            if(WeaponVault.isWeapon(store.getItem(i))) weapons++;
+        if(weapons==0) return 0;
+        return Math.min(MAX_GATES,weapons<=3?1:1+(weapons-2)/2);
     }
 
     public static void skillHeld(LivingEntity entity,boolean surround,int count) {
@@ -113,24 +134,32 @@ public final class GoldenGates {
             return;
         }
         Active a=ACTIVE.get(id);
-        // A held cast owns its portal entities until release. Changing mastery
-        // may change the requested count, but must not tear down the open gates.
+        int wanted=Math.max(0,Math.min(MAX_GATES,count));
+        if(wanted==0) {
+            if(a!=null) close(a);
+            ACTIVE.remove(id);
+            return;
+        }
+        // Reuse old portal entities and only add/remove the difference when
+        // the number of weapons changes during a held cast.
         if(a!=null && a.level==player.serverLevel() && a.surround==surround) {
-            a.heartbeat=player.serverLevel().getGameTime();
+            long now=player.serverLevel().getGameTime();
+            if(wanted<a.gateCount) {
+                for(int i=wanted;i<a.gateCount;i++) {
+                    if(a.gates[i]!=null && !a.gates[i].isRemoved()) a.gates[i].discard();
+                    a.gates[i]=null;
+                }
+            } else if(wanted>a.gateCount) {
+                for(int i=a.gateCount;i<wanted;i++)
+                    a.gateOpeningAt[i]=now+(i-a.gateCount)*GATE_STAGGER_TICKS;
+            }
+            a.gateCount=wanted;
+            a.heartbeat=now;
             return;
         }
         if(a!=null)close(a);
-        a=new Active(player,surround,count);
+        a=new Active(player,surround,wanted);
         ACTIVE.put(id,a);
-        for(int i=0;i<a.gateCount;i++) {
-            Display.ItemDisplay d=new Display.ItemDisplay(EntityType.ITEM_DISPLAY,player.serverLevel());
-            d.setItemStack(new ItemStack(GilgameshMod.GATE_FRAME.get()));
-            d.setItemTransform(ItemDisplayContext.FIXED);
-            d.setNoGravity(true);
-            d.setPos(player.getX(),player.getY()+2.1,player.getZ());
-            player.serverLevel().addFreshEntity(d);
-            a.gates[i]=d;
-        }
         player.displayClientMessage(Component.literal(
             "Gate of Babylon: opening "+a.gateCount+" portals"),true);
     }
@@ -156,12 +185,14 @@ public final class GoldenGates {
     private static Vec3 gatePos(Active a,ServerPlayer p,int i,Vec3 forward,Vec3 right) {
         if(a.surround) {
             double t=2*Math.PI*i/a.gateCount;
-            return a.target.add(Math.cos(t)*4,1.5+0.4*Math.sin(2*t),Math.sin(t)*4);
+            // A wider ring prevents the portals overlapping at high counts.
+            double radius=Math.max(4.5,a.gateCount*0.65);
+            return a.target.add(Math.cos(t)*radius,1.5+0.4*Math.sin(2*t),Math.sin(t)*radius);
         }
-        double centered=i-(a.gateCount-1)/2.0;
-        return p.position().subtract(forward.scale(2.5))
-            .add(right.scale(centered*1.03))
-            .add(0,2.0+0.65*Math.cos(Math.PI*centered/Math.max(2,a.gateCount)),0);
+        int[] cell=GRID_ORDER[i];
+        return p.position().subtract(forward.scale(4.0))
+            .add(right.scale(cell[0]*COLUMN_GAP))
+            .add(0,4.55+cell[1]*ROW_GAP,0);
     }
     private static void poseGate(Display.ItemDisplay gate,Vec3 flat,float scale) {
         Quaternionf rot=new Quaternionf().rotationTo(
@@ -204,11 +235,22 @@ public final class GoldenGates {
         long now=a.level.getGameTime();
         Vec3 forward=horizontal(p);
         Vec3 side=right(forward);
-        float opening=Math.min(1f,Math.max(0.08f,(now-a.openingAt)/(float)OPEN_TICKS));
         for(int i=0;i<a.gateCount;i++) {
-            Display.ItemDisplay gate=a.gates[i];
-            if(gate==null || gate.isRemoved()) continue;
+            if(now<a.gateOpeningAt[i]) continue;
             Vec3 center=gatePos(a,p,i,forward,side);
+            Display.ItemDisplay gate=a.gates[i];
+            // Spawn each gate at its own reveal time, not all at once.
+            if(gate==null || gate.isRemoved()) {
+                gate=new Display.ItemDisplay(EntityType.ITEM_DISPLAY,a.level);
+                gate.setItemStack(new ItemStack(GilgameshMod.GATE_FRAME.get()));
+                gate.setItemTransform(ItemDisplayContext.FIXED);
+                gate.setNoGravity(true);
+                gate.setPos(center.x,center.y,center.z);
+                a.level.addFreshEntity(gate);
+                a.gates[i]=gate;
+            }
+            float opening=Math.min(1f,Math.max(0.08f,
+                (now-a.gateOpeningAt[i])/(float)OPEN_TICKS));
             gate.setPos(center.x,center.y,center.z);
             Vec3 orientation=a.surround?a.target.subtract(center).normalize():forward;
             poseGate(gate,orientation,2.6f*opening);
@@ -290,25 +332,35 @@ public final class GoldenGates {
             if(WeaponVault.isWeapon(stack)) weapons.add(stack.copyWithCount(1));
         }
         if(weapons.isEmpty()) {a.wave=0;return;}
+        List<Integer> readyGates=new ArrayList<>();
+        long now=a.level.getGameTime();
+        for(int i=0;i<a.gateCount;i++)
+            if(a.gates[i]!=null && !a.gates[i].isRemoved()
+                && now>=a.gateOpeningAt[i]+OPEN_TICKS) readyGates.add(i);
+        if(readyGates.isEmpty()) return;
         int waves=(weapons.size()+WAVE-1)/WAVE;
         a.wave%=waves;
         int start=a.wave*WAVE;
         int limit=Math.min(start+WAVE,weapons.size());
-        Vec3 aim=p.getLookAngle().normalize();
+        // All rows converge on the player's crosshair target, including
+        // the high portals; firing along a parallel player-look vector would
+        // cause upper-row weapons to pass harmlessly above ground targets.
+        Vec3 aimPoint=a.surround?a.target:GilgameshAbilities.selectSurroundTarget(p);
         for(int k=start;k<limit;k++) {
             int index=k-start;
-            int gate=index%a.gateCount;
+            int gate=readyGates.get(index%readyGates.size());
             Vec3 center=gatePos(a,p,gate,forward,side);
-            int row=index/a.gateCount;
-            double xOffset=(row-1)*0.34;
-            double yOffset=(row%2==0 ? -0.1:0.18);
+            int lane=index/readyGates.size();
+            // Keep multiple simultaneous swords inside their portal opening.
+            double xOffset=((lane%3)-1)*0.30;
+            double yOffset=(((lane/3)%3)-1)*0.22;
             Vec3 spawn=center.add(side.scale(xOffset)).add(0,yOffset,0);
             Display.ItemDisplay d=new Display.ItemDisplay(EntityType.ITEM_DISPLAY,a.level);
             d.setItemStack(weapons.get(k).copy());
             d.setItemTransform(ItemDisplayContext.FIXED);
             d.setNoGravity(true);
             d.setPos(spawn.x,spawn.y,spawn.z);
-            Vec3 shotAim=a.surround?a.target.subtract(center).normalize():aim;
+            Vec3 shotAim=aimPoint.subtract(spawn).normalize();
             poseShot(d,shotAim,weapons.get(k));
             a.level.addFreshEntity(d);
             a.shots.add(new Shot(d,shotAim,p,weaponDamage(weapons.get(k))));
@@ -354,7 +406,8 @@ public final class GoldenGates {
                 int count=0;
                 Container store=WeaponVault.get(p);
                 for(int i=0;i<store.getContainerSize();i++) if(WeaponVault.isWeapon(store.getItem(i))) count++;
-                p.sendSystemMessage(Component.literal("Golden Gates: "+count+" filled slots, "+
+                p.sendSystemMessage(Component.literal("Golden Gates: "+count+" weapons, "+
+                    gatesForStorehouse(p)+" portals, "+
                     ((count+WAVE-1)/WAVE)+" waves (max "+WAVE+" per wave)"));
                 return 1;
             })));

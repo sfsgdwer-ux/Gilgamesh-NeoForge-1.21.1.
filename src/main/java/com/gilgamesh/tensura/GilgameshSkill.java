@@ -118,9 +118,13 @@ public final class GilgameshSkill extends Skill {
             }
             case DIRECT, SURROUND -> {
                 if(GoldenGates.isSkillActive(player)) return;
+                int gates=GoldenGates.gatesForStorehouse(player);
+                if(gates==0) {
+                    player.displayClientMessage(Component.literal(
+                        "Gate of Babylon: put weapons in King's Storehouse first"),true);
+                    return;
+                }
                 if (!spend(player,25_000)) return;
-                int gates = 5 + (int)Math.floor(Math.min(2000,instance.getMastery())/400.0);
-                if (mode==SURROUND) gates+=2;
                 GoldenGates.skillHeld(player,mode==SURROUND,gates);
             }
             case EA -> {
@@ -159,12 +163,15 @@ public final class GilgameshSkill extends Skill {
             }
             case DIRECT, SURROUND -> {
                 if(!GoldenGates.isSkillActive(player)) return false;
+                int gates=GoldenGates.gatesForStorehouse(player);
+                if(gates==0) {
+                    GoldenGates.skillReleased(player);
+                    return false;
+                }
                 if(heldTicks>0 && heldTicks%20==0 && !spend(player,5_000)) {
                     GoldenGates.skillReleased(player);
                     return false;
                 }
-                int gates=5+(int)Math.floor(Math.min(2000,instance.getMastery())/400.0);
-                if(mode==SURROUND)gates+=2;
                 GoldenGates.skillHeld(player,mode==SURROUND,gates);
                 if(heldTicks%40==0) addMasteryPoint(instance,player,1);
                 return true;
