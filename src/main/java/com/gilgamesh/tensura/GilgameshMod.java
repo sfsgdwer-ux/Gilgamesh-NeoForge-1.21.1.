@@ -1,6 +1,13 @@
 package com.gilgamesh.tensura;
 
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.SwordItem;
+import net.minecraft.world.item.AxeItem;
+import net.minecraft.world.item.Tiers;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.flag.FeatureFlags;
+import net.neoforged.neoforge.registries.DeferredHolder;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import io.github.manasmods.manascore.skill.api.SkillAPI;
@@ -19,8 +26,23 @@ public final class GilgameshMod {
 
     public static final DeferredItem<Item> GILGAMESH_ICON = ITEMS.registerSimpleItem("gilgamesh_icon", new Item.Properties());
 
+    public static final DeferredRegister<MenuType<?>> MENUS = DeferredRegister.create(Registries.MENU, MODID);
+    public static final DeferredHolder<MenuType<?>,MenuType<WeaponVaultMenu>> VAULT_MENU =
+        MENUS.register("kings_storehouse",()->
+            new MenuType<>(WeaponVaultMenu::new,FeatureFlags.DEFAULT_FLAGS));
+
+    public static final DeferredItem<Item> EA_SWORD= ITEMS.register("ea_sword",()->
+        new SwordItem(Tiers.NETHERITE,new Item.Properties()
+            .attributes(SwordItem.createAttributes(Tiers.NETHERITE,200f,-2.4f))
+            .stacksTo(1)));
+    public static final DeferredItem<Item> GENESIS_AXE= ITEMS.register("genesis_axe",()->
+        new AxeItem(Tiers.NETHERITE,new Item.Properties()
+            .attributes(AxeItem.createAttributes(Tiers.NETHERITE,82f,-2.8f))
+            .stacksTo(1)));
+
     public GilgameshMod(IEventBus bus) {
         ITEMS.register(bus);
+        MENUS.register(bus);
         bus.addListener(this::registerSkills);
     }
 

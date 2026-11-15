@@ -3,20 +3,17 @@ package com.gilgamesh.tensura;
 import io.github.manasmods.manascore.skill.api.ManasSkillInstance;
 import io.github.manasmods.tensura.ability.skill.Skill;
 import io.github.manasmods.tensura.util.EnergyHelper;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 
-/**
- * Native ManasCore/Tensura registry skill. Does not depend on KubeJS or TensurJS.
- * Holding the regular Tensura activation key channels the existing portal effect.
- */
+/** Native Ultimate Skill with 8 configurable modes. No scripting addons. */
 public final class GilgameshSkill extends Skill {
-    private static final double OPENING_MAGICULES = 200.0D;
+    public static final int TERRITORY = 0, ENKIDU = 1, STOREHOUSE = 2,
+        DIRECT = 3, SURROUND = 4, EA = 5, AXE = 6, ENUMA = 7;
 
-    public GilgameshSkill() {
-        super(SkillType.ULTIMATE);
-    }
+    public GilgameshSkill() { super(SkillType.ULTIMATE); }
 
     @Override
     public ResourceLocation getSkillIcon() {
@@ -25,9 +22,34 @@ public final class GilgameshSkill extends Skill {
     }
 
     @Override
-    public boolean shouldTriggerReleaseOnHeldInterrupt(
-            ManasSkillInstance instance, LivingEntity entity, int keyNumber, int mode) {
-        return true;
+    public int getMaxMastery() { return 2000; }
+
+    @Override
+    public int getModes(ManasSkillInstance instance) { return 8; }
+
+    @Override
+    public String getModeId(ManasSkillInstance instance, int mode) {
+        return switch (mode) {
+            case TERRITORY -> "territory";
+            case ENKIDU -> "enkidu";
+            case STOREHOUSE -> "storehouse";
+            case DIRECT -> "direct";
+            case SURROUND -> "surround";
+            case EA -> "ea";
+            case AXE -> "axe";
+            case ENUMA -> "enuma";
+            default -> "direct";
+        };
+    }
+
+    @Override
+    public Component getModeName(ManasSkillInstance instance, int mode) {
+        return Component.translatable("gilgamesh_tensura.skill.mode." + getModeId(instance, mode));
+    }
+
+    @Override
+    public int nextMode(LivingEntity entity, ManasSkillInstance instance, int mode, boolean reverse) {
+        return Math.floorMod(mode + (reverse ? -1 : 1), 8);
     }
 
     @Override
@@ -36,22 +58,110 @@ public final class GilgameshSkill extends Skill {
     }
 
     @Override
-    public void onPressed(ManasSkillInstance instance, LivingEntity entity, int keyNumber, int mode) {
-        if (!(entity instanceof ServerPlayer player)) return;
-        if (GoldenGates.isSkillActive(player)) return;
+    public boolean canTick(ManasSkillInstance instance, LivingEntity entity) { return true; }
 
-        // Opening fee, paid once. Never spend magicules every held tick.
-        if (EnergyHelper.isOutOfMagiculeConsuming(player, OPENING_MAGICULES, 0.0D) > 0.0D) return;
-        GoldenGates.skillHeld(player);
+    @Override
+    public void onTick(ManasSkillInstance instance, LivingEntity entity) {
+        GilgameshAbilities.passiveGoldenRule(entity);
     }
 
     @Override
-    public boolean onHeld(ManasSkillInstance instance, LivingEntity living, int heldTicks, int mode) {
-        if (!(living instanceof ServerPlayer player)) return true;
-        // Insufficient magicules onPress: deny hold rather than opening for free.
-        if (!GoldenGates.isSkillActive(player)) return false;
-        GoldenGates.skillHeld(player);
+    public boolean shouldTriggerReleaseOnHeldInterrupt(
+            ManasSkillInstance instance, LivingEntity entity, int keyNumber, int mode) {
         return true;
+    }
+
+    private static boolean spend(ServerPlayer player, double amount) {
+        if (player.isCreative()) return true;
+        boolean success = EnergyHelper.isOutOfMagiculeConsuming(player, amount, 0.0D) <= 0.0D;
+        if (!success) player.displayClientMessage(Component.literal("Gilgamesh: insufficient Magicules (" + (long)amount + ")"), true);
+        return success;
+    }
+
+    @Override
+    public void onPressed(ManasSkillInstance instance, LivingEntity entity, int keyNumber, int mode) {
+        if (!(entity instanceof ServerPlayer player)) return;
+        if (instance.getCoolDown(mode) > 0) return;
+        switch(mode) {
+            case TERRITORY -> player.displayClientMessage(Component.literal("Hold to establish your territory (one use only)"),true);
+            case ENKIDU -> {
+                if (!GilgameshAbilities.hasEnkiduTarget(player)) return;
+                if (!spend(player, 50_000)) return;
+                if (GilgameshAbilities.enkidu(player, instance.getMastery()>=2000)) {
+                    instance.setCoolDown(20,mode);
+                    addMasteryPoint(instance, player, 3);
+                }
+            }
+            case STOREHOUSE -> {
+                WeaponVault.open(player);
+                addMasteryPoint(instance, player, 1);
+            }
+            case DIRECT, SURROUND -> {
+                if(GoldenGates.isSkillActive(player)) return;
+                if (!spend(player,25_000)) return;
+                int gates = 5 + (int)Math.floor(Math.min(2000,instance.getMastery())/400.0);
+                if (mode==SURROUND) gates+=2;
+                GoldenGates.skillHeld(player,mode==SURROUND,gates);
+            }
+            case EA -> {
+                if(instance.getMastery()<2000) {
+                    player.displayClientMessage(Component.literal("Ea requires 2000 Mastery"),true);
+                    return;
+                }
+                // Max AP is not yet available through the confirmed interface;
+                // this development build temporarily charges Magicules instead.
+                if(!spend(player,1_000_000)) return;
+                GilgameshAbilities.giveEa(player);
+            }
+            case AXE -> {
+                if(GilgameshAbilities.hasCreatedAxe(player)) return;
+                if(!spend(player,1_000_000)) return;
+                GilgameshAbilities.giveAxe(player);
+                addMasteryPoint(instance,player,5);
+            }
+            case ENUMA -> {
+                if(!GilgameshAbilities.holdsEa(player))
+                    player.displayClientMessage(Component.literal("Hold Ea to use Enuma Elish"),true);
+            }
+            default -> {}
+        }
+    }
+
+    @Override
+    public boolean onHeld(ManasSkillInstance instance, LivingEntity entity, int heldTicks, int mode) {
+        if (!(entity instanceof ServerPlayer player)) return true;
+        switch(mode) {
+            case TERRITORY -> {
+                if(heldTicks>=18 && !GilgameshAbilities.hasTerritory(player)) {
+                    if(!spend(player,1_000_000)) return false;
+                    GilgameshAbilities.establishTerritory(player);
+                    addMasteryPoint(instance,player,10);
+                }
+                return !GilgameshAbilities.hasTerritory(player);
+            }
+            case DIRECT, SURROUND -> {
+                if(!GoldenGates.isSkillActive(player)) return false;
+                if(heldTicks>0 && heldTicks%20==0 && !spend(player,5_000)) {
+                    GoldenGates.skillReleased(player);
+                    return false;
+                }
+                int gates=5+(int)Math.floor(Math.min(2000,instance.getMastery())/400.0);
+                if(mode==SURROUND)gates+=2;
+                GoldenGates.skillHeld(player,mode==SURROUND,gates);
+                if(heldTicks%40==0) addMasteryPoint(instance,player,1);
+                return true;
+            }
+            case ENUMA -> {
+                if(!GilgameshAbilities.holdsEa(player)) return false;
+                if(heldTicks%20==0) {
+                    if(!spend(player,100_000)) return false;
+                    GilgameshAbilities.enumaElish(player);
+                    addMasteryPoint(instance,player,2);
+                }
+                return true;
+            }
+            default -> { return false; }
+        }
     }
 
     @Override
@@ -59,5 +169,4 @@ public final class GilgameshSkill extends Skill {
                           int heldTicks, int keyNumber, int mode) {
         GoldenGates.skillReleased(entity);
     }
-
 }

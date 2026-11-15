@@ -3,7 +3,7 @@ loaderVersion="[4,)"
 license="All Rights Reserved"
 [[mods]]
 modId="gilgamesh_tensura"
-version="1.4.0"
+version="1.5.0-dev"
 displayName="Gilgamesh - Golden Gates (Native Ultimate Skill)"
 authors="Community recreation"
 description='''
