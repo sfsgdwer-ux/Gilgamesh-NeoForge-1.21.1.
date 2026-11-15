@@ -63,8 +63,10 @@ public final class GoldenGates {
         {0,0}, {-1,0}, {1,0}, {0,1}, {0,-1}, {-1,1}, {1,1}, {-1,-1}, {1,-1}
     };
     private static final int NEXT_WAVE_DELAY=22;
-    private static final int SHOT_LIFE=19;
+    private static final int SHOT_LIFE=22;
     private static final double SHOT_SPEED=2.7;
+    // Slide through each gate for the opening three ticks, then accelerate.
+    private static final double[] LAUNCH_SPEED={0.55,1.10,1.85};
     // Offsets are in blocks at the aim plane. First sword stays precisely
     // on the crosshair; additional swords spread horizontally and vertically.
     private static final double[][] FAN_OFFSETS={
@@ -218,36 +220,42 @@ public final class GoldenGates {
             new Vector3f(),rot,new Vector3f(scale,scale,scale),new Quaternionf()));
     }
     private static void poseShot(Display.ItemDisplay shot,Vec3 dir,ItemStack item) {
-        /*
-         * A thrown axe/pickaxe looks like a boomerang if its 2D sprite is
-         * aligned only by shortest-arc rotationTo(axis,dir): that leaves
-         * the screen-facing roll unconstrained.
-         *
-         * Align the handle->head axis to local -Z once; then apply a stable
-         * world-up projectile frame. The display gets NO per-tick angular
-         * rotation. All axes, pickaxes, hoes, shovels and swords travel
-         * straight with their business end forward, not spinning sideways.
-         */
+        // Item sprites lie in local XY. The weapon's handle->tip diagonal
+        // must be mapped to the projectile's travel vector exactly once.
+        // Using ItemDisplayContext.NONE also prevents the vanilla FIXED item
+        // context from applying an additional 180-degree Y rotation.
         String id=item.getDescriptionId().toLowerCase(java.util.Locale.ROOT);
         boolean axe=item.getItem() instanceof AxeItem || id.contains("_axe");
         boolean pick=item.getItem() instanceof PickaxeItem || id.contains("_pickaxe");
         boolean shovel=item.getItem() instanceof ShovelItem || id.contains("_shovel");
         boolean hoe=item.getItem() instanceof HoeItem || id.contains("_hoe");
         boolean tool=axe || pick || shovel || hoe;
-        Vector3f handleToHead=new Vector3f(
-            axe?-1f:1f,1f,0f).normalize();
-        Quaternionf localToForward=new Quaternionf().rotationTo(
-            handleToHead,new Vector3f(0f,0f,-1f));
+
+        // Most vanilla tool sprites have the head at upper LEFT, while
+        // swords/daggers point to upper RIGHT. Modded custom 3D item models
+        // may use another authored axis and need a model-specific override.
+        Vector3f handleToTip=new Vector3f(tool?-1f:1f,1f,0f).normalize();
         Vector3f forward=new Vector3f((float)dir.x,(float)dir.y,
             (float)dir.z).normalize();
-        Vector3f stableUp=(Math.abs(forward.y)>0.96f)
+        Vector3f stableUp=(Math.abs(forward.y)>0.97f)
             ? new Vector3f(0f,0f,-1f) : new Vector3f(0f,1f,0f);
-        // lookAlong maps local -Z to forward and locks roll using stableUp.
-        Quaternionf worldFrame=new Quaternionf().lookAlong(forward,stableUp);
-        Quaternionf q=worldFrame.mul(localToForward);
-        float scale=tool?1.12f:1.25f;
+        // JOML lookAlong maps *world direction -> local positive Z*, not the
+        // reverse. Invert it so positive local Z maps *outward* along shot dir.
+        Quaternionf worldFrame=new Quaternionf()
+            .lookAlong(forward,stableUp).conjugate().normalize();
+        Quaternionf tipToZ=new Quaternionf().rotationTo(
+            handleToTip,new Vector3f(0f,0f,1f));
+        Quaternionf orientation=worldFrame.mul(tipToZ).normalize();
+
+        // Guard against modded or degenerate directions: verify that the
+        // actual rendered handle-to-tip vector faces the travel direction.
+        Vector3f visualTip=orientation.transform(new Vector3f(handleToTip));
+        if(visualTip.dot(forward)<0.99f)
+            orientation=new Quaternionf().rotationTo(handleToTip,forward);
+        float scale=tool?1.22f:1.32f;
         shot.setTransformation(new Transformation(
-            new Vector3f(),q,new Vector3f(scale,scale,scale),new Quaternionf()));
+            new Vector3f(),orientation,
+            new Vector3f(scale,scale,scale),new Quaternionf()));
     }
 
     @SubscribeEvent
@@ -296,7 +304,9 @@ public final class GoldenGates {
             Shot s=shots.next();
             s.ticks++;
             Vec3 previous=s.display.position();
-            Vec3 desired=previous.add(s.direction.scale(SHOT_SPEED));
+            double speed=s.ticks<=LAUNCH_SPEED.length
+                ? LAUNCH_SPEED[s.ticks-1] : SHOT_SPEED;
+            Vec3 desired=previous.add(s.direction.scale(speed));
             BlockHitResult block=a.level.clip(new ClipContext(
                 previous,desired,ClipContext.Block.COLLIDER,ClipContext.Fluid.NONE,p));
             boolean blocked=block.getType()!=HitResult.Type.MISS;
@@ -406,14 +416,6 @@ public final class GoldenGates {
             Vec3 center=gatePos(a,p,gate,forward,side);
             int lane=index/readyGates.size();
             double[] fan=FAN_OFFSETS[lane%FAN_OFFSETS.length];
-            // Keep the launch inside the opening while fanning out in flight.
-            Vec3 spawn=center.add(side.scale(fan[0]*0.22))
-                .add(0,fan[1]*0.18,0);
-            Display.ItemDisplay d=new Display.ItemDisplay(EntityType.ITEM_DISPLAY,a.level);
-            d.setItemStack(weapons.get(k).copy());
-            d.setItemTransform(ItemDisplayContext.FIXED);
-            d.setNoGravity(true);
-            d.setPos(spawn.x,spawn.y,spawn.z);
             Vec3 spreadTarget;
             if(a.surround) {
                 // Surround gates continue inward, but strike different parts
@@ -429,7 +431,16 @@ public final class GoldenGates {
                     cell[0]*1.65+fan[0]*FAN_HORIZONTAL))
                     .add(0,cell[1]*1.20+fan[1]*FAN_VERTICAL,0);
             }
-            Vec3 shotAim=spreadTarget.subtract(spawn).normalize();
+            // Spawn just inside the back of the portal plane, not already
+            // outside of it. The weapon visibly crosses the opening first.
+            Vec3 shotAim=spreadTarget.subtract(center).normalize();
+            Vec3 spawn=center.subtract(shotAim.scale(0.55))
+                .add(side.scale(fan[0]*0.12)).add(0,fan[1]*0.09,0);
+            Display.ItemDisplay d=new Display.ItemDisplay(EntityType.ITEM_DISPLAY,a.level);
+            d.setItemStack(weapons.get(k).copy());
+            d.setItemTransform(ItemDisplayContext.NONE);
+            d.setNoGravity(true);
+            d.setPos(spawn.x,spawn.y,spawn.z);
             poseShot(d,shotAim,weapons.get(k));
             a.level.addFreshEntity(d);
             a.shots.add(new Shot(d,shotAim,p,weaponDamage(p,weapons.get(k))));
