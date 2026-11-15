@@ -9,6 +9,8 @@ import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.flag.FeatureFlags;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.damagesource.DamageType;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import io.github.manasmods.manascore.skill.api.SkillAPI;
 import io.github.manasmods.manascore.skill.api.SkillEvents;
@@ -23,6 +25,9 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 public final class GilgameshMod {
     public static final String MODID = "gilgamesh_tensura";
     public static final ResourceLocation SKILL_ID = ResourceLocation.fromNamespaceAndPath(MODID, "gilgamesh");
+    public static final ResourceKey<DamageType> GENESIS_DAMAGE =
+        ResourceKey.create(Registries.DAMAGE_TYPE,
+            ResourceLocation.fromNamespaceAndPath(MODID, "genesis"));
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(MODID);
     public static final DeferredItem<Item> GATE_FRAME = ITEMS.registerSimpleItem("gate_frame", new Item.Properties());
 

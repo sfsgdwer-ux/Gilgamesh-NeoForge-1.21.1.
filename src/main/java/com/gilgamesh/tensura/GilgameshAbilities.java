@@ -5,6 +5,8 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.particles.DustParticleOptions;
+import org.joml.Vector3f;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -30,6 +32,8 @@ public final class GilgameshAbilities {
     private static final String TERRITORY_KEY="gilgamesh_tensura_territory_v1";
     private static final String AXE_KEY="gilgamesh_tensura_axe_created";
     private static final Map<UUID,Binding> BINDS=new HashMap<>();
+    private static final DustParticleOptions CHAIN_GOLD =
+        new DustParticleOptions(new Vector3f(1.0f,0.78f,0.18f),1.0f);
 
     private record Binding(ServerLevel level, UUID victim,Vec3 anchor,long expiry) {}
 
@@ -41,10 +45,13 @@ public final class GilgameshAbilities {
 
     private static LivingEntity aimedTarget(ServerPlayer player, double reach) {
         Vec3 eyes=player.getEyePosition();
-        Vec3 end=eyes.add(player.getLookAngle().scale(reach));
+        Vec3 wanted=eyes.add(player.getLookAngle().normalize().scale(reach));
+        var block=player.serverLevel().clip(new ClipContext(
+            eyes,wanted,ClipContext.Block.COLLIDER,ClipContext.Fluid.NONE,player));
+        Vec3 end=block.getType()==HitResult.Type.MISS?wanted:block.getLocation();
         AABB area=new AABB(eyes,end).inflate(1.5);
         LivingEntity nearest=null;
-        double best=reach*reach;
+        double best=eyes.distanceToSqr(end);
         for(LivingEntity candidate:player.serverLevel().getEntitiesOfClass(LivingEntity.class,area)) {
             if(candidate==player || !candidate.isAlive())continue;
             var point=candidate.getBoundingBox().inflate(0.4).clip(eyes,end);
@@ -129,14 +136,19 @@ public final class GilgameshAbilities {
         Vec3 start=p.getEyePosition();
         Vec3 look=p.getLookAngle().normalize();
         ServerLevel level=p.serverLevel();
-        for(int k=0;k<36;k++) {
+        Vec3 far=start.add(look.scale(57));
+        var block=level.clip(new ClipContext(
+            start,far,ClipContext.Block.COLLIDER,ClipContext.Fluid.NONE,p));
+        double beamLength=block.getType()==HitResult.Type.MISS?57:
+            start.distanceTo(block.getLocation());
+        for(int k=0;k<Math.ceil(beamLength/1.6);k++) {
             Vec3 v=start.add(look.scale(k*1.6));
             level.sendParticles(ParticleTypes.END_ROD,v.x,v.y,v.z,3,0.14,0.14,0.14,0.002);
             level.sendParticles(ParticleTypes.FLAME,v.x,v.y,v.z,1,0.05,0.05,0.05,0.005);
         }
         LivingEntity target=aimedTarget(p,57);
         if(target!=null) {
-            target.hurt(p.damageSources().magic(),2000f);
+            target.hurt(level.damageSources().source(GilgameshMod.GENESIS_DAMAGE,p),2000f);
             // The wiki specifies 0.05% of target's maximum Magicules per second.
             double drain=Math.max(0,EnergyHelper.getMaxMagicule(target)*0.0005);
             EnergyHelper.isOutOfMagiculeConsuming(target,drain,0.0D);
@@ -155,7 +167,20 @@ public final class GilgameshAbilities {
             target.setPos(b.anchor.x,b.anchor.y,b.anchor.z);
             if(b.level.getGameTime()%20==0) {
                 target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN,60,255,false,false));
-                b.level.sendParticles(ParticleTypes.END_ROD,b.anchor.x,b.anchor.y+1,b.anchor.z,6,0.35,0.7,0.35,0.01);
+                // Two intertwined gold spirals evoke Enkidu's holy chains.
+                double height=Math.max(1.0,target.getBbHeight());
+                for(int i=0;i<22;i++) {
+                    double t=i/21.0;
+                    for(int turn=0;turn<2;turn++) {
+                        double phi=8*Math.PI*t+Math.PI*turn;
+                        double x=b.anchor.x+0.65*Math.cos(phi);
+                        double y=b.anchor.y+0.12+height*0.86*t;
+                        double z=b.anchor.z+0.65*Math.sin(phi);
+                        b.level.sendParticles(CHAIN_GOLD,x,y,z,1,0.005,0.005,0.005,0);
+                    }
+                }
+                b.level.sendParticles(ParticleTypes.END_ROD,
+                    b.anchor.x,b.anchor.y+height/2,b.anchor.z,4,0.3,0.3,0.3,0.01);
             }
         }
         if(event.getServer().getTickCount()%60!=0)return;
