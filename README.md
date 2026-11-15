@@ -1,4 +1,4 @@
-# Gilgamesh, Lord of Treasures — v1.6.4 Experimental
+# Gilgamesh, Lord of Treasures — v1.6.7 Experimental
 
 **Minecraft Java 1.21.1 · NeoForge 21.1.265 · Native Ultimate Skill**
 
@@ -18,6 +18,13 @@ The Gilgamesh skill is registered under `gilgamesh_tensura:gilgamesh` with **8 m
 | Ea: Sword of Rupture | Requires mastery 2,000; deducts 1,000,000 maximum AP; grants weapon |
 | Create Axe | Grants one indestructible axe at cost 1,000,000 MP |
 | Enuma Elish | Requires Ea held, costs 100,000 MP/s, raycast 2,000 Genesis damage and drains 0.05% of target's maximum MP per second |
+
+## Ea energy charge effects in v1.6.7
+- **Enuma Elish (held)** now displays three red-gold energy particle coils that counter-rotate around an axis near the sword, charging from small to full radius.
+- This is a **particle-based rotation effect**, not true mechanical rotation of the third-party Sword of Rupture mesh.
+- All MP consumption, beam damage, cooldown and Gate of Babylon gameplay remain unchanged.
+- The third-party **188-element downloaded Ea model** and the animated pulse texture for the blade are packaged only in the local distributable JAR, not the public GitHub source, pending confirmation of the model creator's reuse/redistribution license.
+- No KubeJS or Tensura KubeJS runtime requirement added.
 
 ## Weapon-specific damage and spread volleys in v1.6.4
 - Each flying sword or other stored weapon copies its own main-hand attack-damage item modifiers (flat, multiplied base, multiplied total). Vanilla Sharpness level on that particular ItemStack contributes extra damage. No more fixed +2 damage or cap of 250; damages are bounded for numerical safety at 1,000,000.
