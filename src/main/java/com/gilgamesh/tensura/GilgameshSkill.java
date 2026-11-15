@@ -183,6 +183,9 @@ public final class GilgameshSkill extends Skill {
                     GilgameshAbilities.enumaElish(player);
                     addMasteryPoint(instance,player,2);
                 }
+                // Small, synchronized red-gold rotating effects during
+                // casting. The native item model remains a static mesh.
+                GilgameshAbilities.animateEaCharge(player,heldTicks);
                 return true;
             }
             default -> { return false; }

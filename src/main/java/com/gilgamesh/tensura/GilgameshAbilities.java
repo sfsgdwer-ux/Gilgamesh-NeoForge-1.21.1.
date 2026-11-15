@@ -34,6 +34,10 @@ public final class GilgameshAbilities {
     private static final Map<UUID,Binding> BINDS=new HashMap<>();
     private static final DustParticleOptions CHAIN_GOLD =
         new DustParticleOptions(new Vector3f(1.0f,0.78f,0.18f),1.0f);
+    private static final DustParticleOptions EA_RED =
+        new DustParticleOptions(new Vector3f(1.0f,0.08f,0.07f),1.25f);
+    private static final DustParticleOptions EA_CORE =
+        new DustParticleOptions(new Vector3f(1.0f,0.40f,0.18f),0.85f);
 
     private record Binding(ServerLevel level, UUID victim,Vec3 anchor,long expiry) {}
 
@@ -129,6 +133,49 @@ public final class GilgameshAbilities {
     public static boolean holdsEa(ServerPlayer p) {
         return p.getMainHandItem().is(GilgameshMod.EA_SWORD.get()) ||
                p.getOffhandItem().is(GilgameshMod.EA_SWORD.get());
+    }
+
+    /**
+     * Three independently counter-rotating crimson particle coils around
+     * the held Ea's forward axis during Enuma Elish charge.
+     *
+     * This intentionally does not rotate the original third-party item mesh:
+     * its 188 cuboids are one static vanilla item model. It provides a
+     * visible three-stage spin effect without GeckoLib/KubeJS dependencies.
+     */
+    public static void animateEaCharge(ServerPlayer p, int heldTicks) {
+        if(heldTicks%2!=0) return;
+        Vec3 look=p.getLookAngle().normalize();
+        Vec3 side=look.cross(new Vec3(0,1,0));
+        if(side.lengthSqr()<0.0001) side=new Vec3(1,0,0);
+        side=side.normalize();
+        Vec3 up=side.cross(look).normalize();
+
+        // Approximate the first-person sword position in front of the right
+        // hand, rather than drawing the effect across the player's face.
+        Vec3 origin=p.getEyePosition().add(look.scale(0.73))
+            .add(side.scale(0.36)).add(up.scale(-0.40));
+        ServerLevel level=p.serverLevel();
+        double open=Math.min(1.0,Math.max(0.1,heldTicks/16.0));
+        for(int layer=0;layer<3;layer++) {
+            double dist=0.15+layer*0.31;
+            double radius=(0.16+layer*0.035)*open;
+            double speed=layer==1?-0.30:0.30;
+            double phase=heldTicks*speed+layer*2.1;
+            for(int k=0;k<7;k++) {
+                double angle=phase+2*Math.PI*k/7.0;
+                Vec3 point=origin.add(look.scale(dist))
+                    .add(side.scale(Math.cos(angle)*radius))
+                    .add(up.scale(Math.sin(angle)*radius));
+                level.sendParticles(layer==1?EA_CORE:EA_RED,
+                    point.x,point.y,point.z,1,0,0,0,0);
+            }
+        }
+        if(heldTicks%8==0) {
+            Vec3 tip=origin.add(look.scale(0.9));
+            level.sendParticles(ParticleTypes.END_ROD,
+                tip.x,tip.y,tip.z,2,0.1,0.1,0.1,0.012);
+        }
     }
 
     /** Beam with golden visual streak; damage once per second. */
