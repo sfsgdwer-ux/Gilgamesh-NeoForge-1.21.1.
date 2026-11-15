@@ -41,6 +41,6 @@ jobs:
           cp INSTALL_TH.md build/release/
       - uses: actions/upload-artifact@v4
         with:
-          name: Gilgamesh-v1.6.2-Adaptive-3x3-Gates-Experimental
+          name: Gilgamesh-v1.6.4-Weapon-Damage-Spread-Experimental
           path: build/release/
           if-no-files-found: error
