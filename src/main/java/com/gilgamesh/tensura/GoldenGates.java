@@ -246,7 +246,6 @@ public final class GoldenGates {
         Quaternionf worldFrame=new Quaternionf().lookAlong(forward,stableUp);
         Quaternionf q=worldFrame.mul(localToForward);
         float scale=tool?1.12f:1.25f;
-        shot.setBillboardConstraints(Display.BillboardConstraints.FIXED);
         shot.setTransformation(new Transformation(
             new Vector3f(),q,new Vector3f(scale,scale,scale),new Quaternionf()));
     }
