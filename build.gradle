@@ -108,6 +108,19 @@ tasks.register('generateEnumaCinematicTextures') {
             javax.imageio.ImageIO.write(img,'png',
                 new File(textureDir,name+'.png'))
         }
+        // Original neutral Ea texture for public CI builds. The private
+        // handoff jar gets the user's uploaded original art instead.
+        def ea = new java.awt.image.BufferedImage(64,64,
+            java.awt.image.BufferedImage.TYPE_INT_ARGB)
+        for (int y=0;y<64;y++) for(int x=0;x<64;x++) {
+            int noise = (x*19+y*23)%18
+            int argb = (0xFF<<24)|((40+noise)<<16)|((25+noise)<<8)|(45+noise)
+            if(x>31 && y<32)
+                argb=(0xFF<<24)|((125+noise)<<16)|((90+noise)<<8)|(30+noise/2)
+            ea.setRGB(x,y,argb)
+        }
+        javax.imageio.ImageIO.write(ea,'png',
+            new File(textureDir,'ea_animated.png'))
     }
 }
 tasks.named('processResources') {
