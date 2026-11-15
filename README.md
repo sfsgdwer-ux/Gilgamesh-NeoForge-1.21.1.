@@ -1,4 +1,4 @@
-# Gilgamesh, Lord of Treasures — v1.6.7 Experimental
+# Gilgamesh, Lord of Treasures — v1.7.0 Experimental
 
 **Minecraft Java 1.21.1 · NeoForge 21.1.265 · Native Ultimate Skill**
 
@@ -18,6 +18,14 @@ The Gilgamesh skill is registered under `gilgamesh_tensura:gilgamesh` with **8 m
 | Ea: Sword of Rupture | Requires mastery 2,000; deducts 1,000,000 maximum AP; grants weapon |
 | Create Axe | Grants one indestructible axe at cost 1,000,000 MP |
 | Enuma Elish | Requires Ea held, costs 100,000 MP/s, raycast 2,000 Genesis damage and drains 0.05% of target's maximum MP per second |
+
+## Native 3D Enuma Elish VFX in v1.7.0
+- **Enuma Elish** now maintains two elongated ItemDisplay models (hot core + red aura) and three independently rotating 3D energy rings while the key is held, adjusting orientation and size to the player's aim. The displays are reused per tick and cleaned on release, MP exhaustion, death/dimension change, or timeout.
+- Includes custom original model JSONs in the mod asset directory, with vanilla texture fallbacks. A separate, locally repacked JAR adds higher-detail original red/gold textures and preserves the user's downloaded Ea 3D model without publishing that third-party asset in the repository.
+- The underlying hit detection and block break system is still experimental: 320 Genesis damage per 2 ticks on intersected entities, breakable blocks along the beam processed every 5 ticks with a cap of 32 per sweep. Unbreakable blocks and blocks with block entities are excluded. **Back up the world before testing**.
+- Existing 100,000 MP per second drain is maintained. Beam objects stop immediately when the key is released.
+- **Create Axe mode remains removed** (7 active modes). The registered older axe item may still exist for world compatibility.
+- No KubeJS, OptiFine or GeckoLib dependency is required for this effect.
 
 ## Ea energy charge effects in v1.6.7
 - **Enuma Elish (held)** now displays three red-gold energy particle coils that counter-rotate around an axis near the sword, charging from small to full radius.
