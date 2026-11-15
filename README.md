@@ -1,4 +1,4 @@
-# Gilgamesh, Lord of Treasures — v1.7.5 Experimental
+# Gilgamesh, Lord of Treasures — v1.7.6 Experimental
 
 **Minecraft Java 1.21.1 · NeoForge 21.1.265 · Native Ultimate Skill**
 
@@ -18,6 +18,14 @@ The Gilgamesh skill is registered under `gilgamesh_tensura:gilgamesh` with **8 m
 | Ea: Sword of Rupture | Requires mastery 2,000; deducts 1,000,000 maximum AP; grants weapon |
 | Create Axe | Grants one indestructible axe at cost 1,000,000 MP |
 | Enuma Elish | Requires Ea held, costs 100,000 MP/s, raycast 2,000 Genesis damage and drains 0.05% of target's maximum MP per second |
+
+## Stable tip-first projectile flight and gate emergence in v1.7.6
+- Fixes a **reversed quaternion mapping** in `GoldenGates.poseShot`: JOML `lookAlong` maps the world direction to local positive Z, so its inverse is required to point the model's actual tip along the shot's velocity.
+- Removes the extra 180-degree rotation introduced by the item `FIXED` display context: launched weapons now use `ItemDisplayContext.NONE` with one explicit quaternion.
+- Categorizes vanilla swords (upper-right tip) separately from axes, pickaxes, shovels, and hoes (upper-left head).
+- Weapons spawn 0.55 blocks *inside* their golden gate and progress outward through the ring for three ticks before accelerating to the original flight speed. The display's angle is fixed once per shot (no projectile tumble).
+- Each projectile continues to use its stored item's own attack stats; 3×3 gates, staggered opening, spread trajectories, Ea recall, and Enuma Overdrive remain intact.
+- A special custom model from another mod may be authored with a different local tip axis and might need a per-model override. Validate in-game with vanilla and modded weapon assets.
 
 ## Skill icon and point-blank Enuma Elish fixes in v1.7.5
 - **Fixes the Ultimate Skill icon path**: Tensura's Skill GUI expects a full texture resource location, including `textures/` and `.png`. The skill now returns `gilgamesh_tensura:textures/icons/skills/gilgamesh.png`.
