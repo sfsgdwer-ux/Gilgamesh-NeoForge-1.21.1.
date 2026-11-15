@@ -41,6 +41,6 @@ jobs:
           cp INSTALL_TH.md build/release/
       - uses: actions/upload-artifact@v4
         with:
-          name: Gilgamesh-v1.7.3-Enuma-Overdrive-Experimental
+          name: Gilgamesh-v1.7.5-Icon-Close-Impact-Fix-Experimental
           path: build/release/
           if-no-files-found: error
