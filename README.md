@@ -1,4 +1,4 @@
-# Gilgamesh, Lord of Treasures — v1.7.2 Experimental
+# Gilgamesh, Lord of Treasures — v1.7.3 Experimental
 
 **Minecraft Java 1.21.1 · NeoForge 21.1.265 · Native Ultimate Skill**
 
@@ -18,6 +18,15 @@ The Gilgamesh skill is registered under `gilgamesh_tensura:gilgamesh` with **8 m
 | Ea: Sword of Rupture | Requires mastery 2,000; deducts 1,000,000 maximum AP; grants weapon |
 | Create Axe | Grants one indestructible axe at cost 1,000,000 MP |
 | Enuma Elish | Requires Ea held, costs 100,000 MP/s, raycast 2,000 Genesis damage and drains 0.05% of target's maximum MP per second |
+
+## Enuma Elish Overdrive + stable projectile flight in v1.7.3
+- **Enuma Elish** features an original 12-tick charging stage with three rotating rune rings and crimson/gold particles converging near the source. No beam damage or block breaking occurs before the charge completes.
+- While held after charging, a narrow translucent core and aura are joined by **two independently counter-rotating 3D helical crimson/black ribbons**, powered by original generated RGBA textures.
+- Two layered, rotating shockwave meshes pulse at the beam's impact endpoint. Particle arcs accent the strike without an opaque white screen flash.
+- Native ItemDisplay elements are reused while held, and removed on release/timeout. Beam visuals begin safely forward of the camera, and the old 100,000 MP/second charge remains unchanged.
+- **Gate of Babylon axes, pickaxes, shovels and hoes** now have a stable, world-up projectile orientation: their business ends point forward and they do not corkscrew or tumble like thrown items. Swords retain forward flight.
+- Keeps the previous stored-weapon damage, adaptive 3×3 gates, Ea seal/recall, and seven skill modes; no KubeJS dependency.
+- This is a native-model VFX upgrade, **not** an AAA volumetric light shader. In-game testing of item model orientations and transparency is needed.
 
 ## Cinematic, camera-safe Enuma Elish visuals in v1.7.2
 - Replaces solid white/glowstone-style rectangular Enuma beam models with **translucent original crimson/amber 3D meshes** and four generated RGBA gradient textures.

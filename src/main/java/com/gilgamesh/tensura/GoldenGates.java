@@ -21,6 +21,9 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.AxeItem;
+import net.minecraft.world.item.PickaxeItem;
+import net.minecraft.world.item.ShovelItem;
+import net.minecraft.world.item.HoeItem;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -215,18 +218,36 @@ public final class GoldenGates {
             new Vector3f(),rot,new Vector3f(scale,scale,scale),new Quaternionf()));
     }
     private static void poseShot(Display.ItemDisplay shot,Vec3 dir,ItemStack item) {
-        // Vanilla 2D tool art is drawn diagonally; +Y alone makes the sprite
-        // appear to fly sideways. Use the local hilt -> head diagonal.
+        /*
+         * A thrown axe/pickaxe looks like a boomerang if its 2D sprite is
+         * aligned only by shortest-arc rotationTo(axis,dir): that leaves
+         * the screen-facing roll unconstrained.
+         *
+         * Align the handle->head axis to local -Z once; then apply a stable
+         * world-up projectile frame. The display gets NO per-tick angular
+         * rotation. All axes, pickaxes, hoes, shovels and swords travel
+         * straight with their business end forward, not spinning sideways.
+         */
         String id=item.getDescriptionId().toLowerCase(java.util.Locale.ROOT);
         boolean axe=item.getItem() instanceof AxeItem || id.contains("_axe");
-        Vector3f modelAxis = axe
-            ? new Vector3f(-1f,1f,0f).normalize()
-            : new Vector3f(1f,1f,0f).normalize();
-        Quaternionf q=new Quaternionf().rotationTo(
-            modelAxis,
-            new Vector3f((float)dir.x,(float)dir.y,(float)dir.z));
+        boolean pick=item.getItem() instanceof PickaxeItem || id.contains("_pickaxe");
+        boolean shovel=item.getItem() instanceof ShovelItem || id.contains("_shovel");
+        boolean hoe=item.getItem() instanceof HoeItem || id.contains("_hoe");
+        boolean tool=axe || pick || shovel || hoe;
+        Vector3f handleToHead=new Vector3f(
+            axe?-1f:1f,1f,0f).normalize();
+        Quaternionf localToForward=new Quaternionf().rotationTo(
+            handleToHead,new Vector3f(0f,0f,-1f));
+        Vector3f forward=new Vector3f((float)dir.x,(float)dir.y,
+            (float)dir.z).normalize();
+        Vector3f stableUp=(Math.abs(forward.y)>0.96f)
+            ? new Vector3f(0f,0f,-1f) : new Vector3f(0f,1f,0f);
+        // lookAlong maps local -Z to forward and locks roll using stableUp.
+        Quaternionf worldFrame=new Quaternionf().lookAlong(forward,stableUp);
+        Quaternionf q=worldFrame.mul(localToForward);
+        float scale=tool?1.12f:1.25f;
         shot.setTransformation(new Transformation(
-            new Vector3f(),q,new Vector3f(1.25f,1.25f,1.25f),new Quaternionf()));
+            new Vector3f(),q,new Vector3f(scale,scale,scale),new Quaternionf()));
     }
 
     @SubscribeEvent

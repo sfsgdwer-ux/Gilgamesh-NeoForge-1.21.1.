@@ -37,6 +37,10 @@ public final class GilgameshMod {
         ITEMS.registerSimpleItem("enuma_beam_aura", new Item.Properties());
     public static final DeferredItem<Item> ENUMA_BEAM_RING =
         ITEMS.registerSimpleItem("enuma_beam_ring", new Item.Properties());
+    public static final DeferredItem<Item> ENUMA_SPIRAL =
+        ITEMS.registerSimpleItem("enuma_spiral", new Item.Properties());
+    public static final DeferredItem<Item> ENUMA_IMPACT =
+        ITEMS.registerSimpleItem("enuma_impact", new Item.Properties());
 
     public static final DeferredItem<Item> GILGAMESH_ICON = ITEMS.registerSimpleItem("gilgamesh_icon", new Item.Properties());
 
