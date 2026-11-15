@@ -26,6 +26,10 @@ jobs:
           TENSURA="$(find "$HOME/.gradle/caches/modules-2/files-2.1/curse.maven/tensura-reincarnated-643695" -name '*.jar' -print -quit)"
           echo "=== EnergyHelper public API ==="
           javap -classpath "$TENSURA" -public io.github.manasmods.tensura.util.EnergyHelper | head -125 || true
+          echo '=== GainType enum ==='
+          javap -classpath "$TENSURA" -public 'io.github.manasmods.tensura.util.EnergyHelper$GainType' | head -60 || true
+          echo '=== DrainType enum ==='
+          javap -classpath "$TENSURA" -public 'io.github.manasmods.tensura.util.EnergyHelper$DrainType' | head -60 || true
           echo "=== Energy classes ==="
           jar tf "$TENSURA" | grep -Ei '(Magicule|Aura|Energy).*[.]class$' | head -100 || true
       - name: Assemble installation tree
