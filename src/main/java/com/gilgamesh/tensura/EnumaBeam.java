@@ -84,7 +84,6 @@ public final class EnumaBeam {
         display.setItemStack(stack);
         display.setItemTransform(ItemDisplayContext.FIXED);
         display.setNoGravity(true);
-        display.setBillboardConstraints(Display.BillboardConstraints.FIXED);
         display.setPos(player.getX(),player.getY()+1.5,player.getZ());
         level.addFreshEntity(display);
         return display;
