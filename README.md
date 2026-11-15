@@ -1,4 +1,4 @@
-# Gilgamesh, Lord of Treasures — v1.6.1 Experimental
+# Gilgamesh, Lord of Treasures — v1.6.2 Experimental
 
 **Minecraft Java 1.21.1 · NeoForge 21.1.265 · Native Ultimate Skill**
 
@@ -18,6 +18,14 @@ The Gilgamesh skill is registered under `gilgamesh_tensura:gilgamesh` with **8 m
 | Ea: Sword of Rupture | Requires mastery 2,000; deducts 1,000,000 maximum AP; grants weapon |
 | Create Axe | Grants one indestructible axe at cost 1,000,000 MP |
 | Enuma Elish | Requires Ea held, costs 100,000 MP/s, raycast 2,000 Genesis damage and drains 0.05% of target's maximum MP per second |
+
+## Adaptive 3×3 Golden Gates in v1.6.2
+- **Direct Fire**: arrange up to nine portals behind the caster in a three-column, three-row grid with 3.65-block horizontal and 3.45-block vertical spacing to avoid overlap.
+- Gate deployment is **based on real weapons stored** in the 20-slot King's Storehouse, not player mastery: 1–3 weapons = 1 portal; 4–5 = 2; 6–7 = 3; then +1 for each two additional weapons (maximum 9 from 18 weapons).
+- Starting with one centered gate, add left/right gates, followed by top and bottom gates and their corners. Each gate starts its opening animation 3 ticks after the previous gate, rather than all opening at once.
+- Both Direct Fire and Surround Attack obey weapon-count scaling. Surround Attack retains its circular formation but expands the ring to prevent overlap.
+- No stored weapons = no portal and **no initial MP charge**. Continuous firing continues through existing portals; the added gates do not reset already-open gates.
+- Portal counts can update mid-hold without recreating previous portal entities. The initial wave fires only after the first set has finished opening.
 
 ## Persistent Gate of Babylon portals in 1.6.1
 - **Direct Fire** and **Surround Attack** open the portals once when the skill key is pressed and keep the same portal display entities visible while it is held.
