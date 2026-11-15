@@ -114,9 +114,9 @@ tasks.register('generateEnumaCinematicTextures') {
             java.awt.image.BufferedImage.TYPE_INT_ARGB)
         for (int y=0;y<64;y++) for(int x=0;x<64;x++) {
             int noise = (x*19+y*23)%18
-            int argb = (0xFF<<24)|((40+noise)<<16)|((25+noise)<<8)|(45+noise)
+            int argb = ((255<<24) + ((40+noise)<<16) + ((25+noise)<<8) + (45+noise))
             if(x>31 && y<32)
-                argb=(0xFF<<24)|((125+noise)<<16)|((90+noise)<<8)|(30+noise/2)
+                argb=((255<<24) + ((125+noise)<<16) + ((90+noise)<<8) + (30+noise/2))
             ea.setRGB(x,y,argb)
         }
         javax.imageio.ImageIO.write(ea,'png',
