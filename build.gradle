@@ -79,7 +79,12 @@ tasks.register('generateEnumaCinematicTextures') {
             enuma_cinematic_core:      [252, 48,  85, 114, 3.7d],
             enuma_cinematic_highlight: [255, 189, 102, 165, 5.5d],
             enuma_cinematic_aura:      [177, 24,  82,  92, 2.6d],
-            enuma_cinematic_ring:      [238, 136, 54, 162, 2.2d]
+            enuma_cinematic_ring:      [238, 136, 54, 162, 2.2d],
+            // Overdrive ribbons and impact fractures use saturated colors
+            // without opaque white-hot glow that obscures the crosshair.
+            enuma_overdrive_spiral:     [237, 20,  62, 185, 1.9d],
+            enuma_overdrive_void:       [115, 12,  47, 160, 2.7d],
+            enuma_overdrive_impact:     [255, 164, 54, 205, 1.6d]
         ]
         variants.each { String name, List settings ->
             int width = 64, height = 64
