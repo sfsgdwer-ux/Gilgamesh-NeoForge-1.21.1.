@@ -121,6 +121,20 @@ tasks.register('generateEnumaCinematicTextures') {
         }
         javax.imageio.ImageIO.write(ea,'png',
             new File(textureDir,'ea_animated.png'))
+        // Opaque gold-bronze pixel art texture for 3D chain link bars.
+        def gold = new java.awt.image.BufferedImage(64,64,
+            java.awt.image.BufferedImage.TYPE_INT_ARGB)
+        for(int y=0;y<64;y++) for(int x=0;x<64;x++) {
+            int grain=(x*13+y*19+(x*y)%19)%22
+            boolean dark=((x/7 + y/5)%7 == 0)
+            int red=dark?92:(198+grain)
+            int green=dark?61:(142+grain)
+            int blue=dark?20:(33+grain/3)
+            int pixel=(255<<24) + (red<<16) + (green<<8) + blue
+            gold.setRGB(x,y,pixel)
+        }
+        javax.imageio.ImageIO.write(gold,'png',
+            new File(textureDir,'enkidu_chain_gold.png'))
     }
 }
 tasks.named('processResources') {
