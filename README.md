@@ -1,4 +1,4 @@
-# Gilgamesh, Lord of Treasures — v1.6.0 Experimental
+# Gilgamesh, Lord of Treasures — v1.6.1 Experimental
 
 **Minecraft Java 1.21.1 · NeoForge 21.1.265 · Native Ultimate Skill**
 
@@ -18,6 +18,12 @@ The Gilgamesh skill is registered under `gilgamesh_tensura:gilgamesh` with **8 m
 | Ea: Sword of Rupture | Requires mastery 2,000; deducts 1,000,000 maximum AP; grants weapon |
 | Create Axe | Grants one indestructible axe at cost 1,000,000 MP |
 | Enuma Elish | Requires Ea held, costs 100,000 MP/s, raycast 2,000 Genesis damage and drains 0.05% of target's maximum MP per second |
+
+## Persistent Gate of Babylon portals in 1.6.1
+- **Direct Fire** and **Surround Attack** open the portals once when the skill key is pressed and keep the same portal display entities visible while it is held.
+- Successive weapon waves now fire every 22 ticks through those persistent portals, without restarting the 18-tick opening animation after each volley.
+- A mastery increase during the held cast no longer destroys and recreates all portals. The new gate count is applied on the next activation.
+- Releasing the key, running out of MP, changing dimension or disconnecting closes and cleans up the portals. MP costs are unchanged.
 
 ## Improved in 1.6.0
 - **King's Storehouse restore**: suppresses disk writes while loading each saved slot, avoiding partial-state saves.
