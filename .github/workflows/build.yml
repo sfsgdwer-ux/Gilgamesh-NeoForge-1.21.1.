@@ -41,6 +41,6 @@ jobs:
           cp INSTALL_TH.md build/release/
       - uses: actions/upload-artifact@v4
         with:
-          name: Gilgamesh-v1.6.4-Weapon-Damage-Spread-Experimental
+          name: Gilgamesh-v1.6.7-Ea-Energy-Charge-Experimental
           path: build/release/
           if-no-files-found: error
