@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.UUID;
 import net.minecraft.commands.Commands;
 import io.github.manasmods.manascore.skill.api.SkillAPI;
+import io.github.manasmods.tensura.util.EnergyHelper;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
@@ -326,6 +327,25 @@ public final class GoldenGates {
                         learned ? "Gilgamesh Ultimate Skill learned" : "Unable to learn Gilgamesh skill"));
                     return learned ? 1 : 0;
                 }))
+            .then(Commands.literal("obtain").executes(ctx -> {
+                ServerPlayer player = ctx.getSource().getPlayerOrException();
+                var skills = SkillAPI.getSkillsFrom(player);
+                if(skills.getSkill(GilgameshMod.SKILL_ID).isPresent()) {
+                    player.sendSystemMessage(Component.literal("You already possess Gilgamesh"));
+                    return 0;
+                }
+                if(!player.isCreative() &&
+                   EnergyHelper.isOutOfMagiculeConsuming(player,750_000D,0.0D)>0.0D) {
+                    player.sendSystemMessage(Component.literal(
+                        "Gilgamesh requires 750,000 MP to obtain"));
+                    return 0;
+                }
+                boolean learned=skills.learnSkill(GilgameshMod.SKILL_ID);
+                player.sendSystemMessage(Component.literal(
+                    learned ? "Gilgamesh learned (Ultimate Skill)" :
+                        "Unable to learn Gilgamesh; check your skill capacity"));
+                return learned?1:0;
+            }))
             .then(Commands.literal("count").executes(ctx->{
                 ServerPlayer p=ctx.getSource().getPlayerOrException();
                 int count=0;
