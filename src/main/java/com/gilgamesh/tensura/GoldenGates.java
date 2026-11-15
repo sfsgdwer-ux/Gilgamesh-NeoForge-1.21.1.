@@ -342,7 +342,10 @@ public final class GoldenGates {
         a.wave%=waves;
         int start=a.wave*WAVE;
         int limit=Math.min(start+WAVE,weapons.size());
-        Vec3 aim=p.getLookAngle().normalize();
+        // All rows converge on the player's crosshair target, including
+        // the high portals; firing along a parallel player-look vector would
+        // cause upper-row weapons to pass harmlessly above ground targets.
+        Vec3 aimPoint=a.surround?a.target:GilgameshAbilities.selectSurroundTarget(p);
         for(int k=start;k<limit;k++) {
             int index=k-start;
             int gate=readyGates.get(index%readyGates.size());
@@ -357,7 +360,7 @@ public final class GoldenGates {
             d.setItemTransform(ItemDisplayContext.FIXED);
             d.setNoGravity(true);
             d.setPos(spawn.x,spawn.y,spawn.z);
-            Vec3 shotAim=a.surround?a.target.subtract(center).normalize():aim;
+            Vec3 shotAim=aimPoint.subtract(spawn).normalize();
             poseShot(d,shotAim,weapons.get(k));
             a.level.addFreshEntity(d);
             a.shots.add(new Shot(d,shotAim,p,weaponDamage(weapons.get(k))));
