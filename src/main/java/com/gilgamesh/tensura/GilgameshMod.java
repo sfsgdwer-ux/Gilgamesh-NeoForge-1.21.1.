@@ -50,7 +50,7 @@ public final class GilgameshMod {
             new MenuType<>(WeaponVaultMenu::new,FeatureFlags.DEFAULT_FLAGS));
 
     public static final DeferredItem<Item> EA_SWORD= ITEMS.register("ea_sword",()->
-        new SwordItem(Tiers.NETHERITE,new Item.Properties()
+        new EaAnimatedItem(Tiers.NETHERITE,new Item.Properties()
             .attributes(SwordItem.createAttributes(Tiers.NETHERITE,200f,-2.4f))
             .stacksTo(1)));
     public static final DeferredItem<Item> GENESIS_AXE= ITEMS.register("genesis_axe",()->
